@@ -1,7 +1,22 @@
+/*******************************************
+ * SOEM Configuration tool
+ *
+ * File    : NetxEcCreateDevice.c
+ * Version : 1.1
+ * Date    : 24-01-2012
+ * History :
+ *          1.1, 24-01-2012, Improved readability
+ *          1.0, 21-12-2011, Initial version 
+****************************************************************/
+
+
 #include "NetxEcCreateDevice.h"
 #include "fsdata.c"
 #include "ethercatmain.h"
 #include "ethercatbase.h"
+
+
+
 /////////////////////////////////////////////////////////////////////////////
 long text2long(const char *text)
 {
@@ -99,8 +114,10 @@ printf("XmlGetBinData : Errore bstrHex %s\n", bstrHex);
         return s;
 }
 /////////////////////////////////////////////////////////////
-// Operations on list //
 
+/************************************************************
+\brief Operations on list
+***************************************************************/
 void CreateListInitCmd(InitCmdList **plist)
  { *plist=NULL;
    
@@ -163,7 +180,7 @@ void InsertInitCmd(InitCmdList **plist, EcInitCmdDesc *cmd)
 	}
   }
   
- //!!!!  
+   
   void InsertInitTR(InitTR **ppInitTRList, EcInitCmdDesc **ppInitCmd, uint8 before)
   {InitTR *temp, *tail;
     temp=(InitTR *)malloc(sizeof(InitTR));
@@ -179,12 +196,15 @@ void InsertInitCmd(InitCmdList **plist, EcInitCmdDesc *cmd)
 		tail->next=temp;
 	}
    }
-
-  
  
-
 /////////////////////////////////////////////////////////////////////////////
 
+/************************************************************
+Read the <InitCmds> nodes in the ENI XML file and store the information in the proper list
+@param[IN] pCmdNode = pointer to the current node in the ENI XML file
+@param[IN] TopNode = pointer to the upper node in the ENI XML file
+@return pDesc = command descriptor that stores the information about the read command
+***************************************************************/
 EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 {
     EcInitCmdDesc *pDesc = NULL;
@@ -414,6 +434,13 @@ throwj2:
     return pDesc;
 }
 ///////////////////////////////////////////////////////////////////////////////
+
+/************************************************************
+Read the <CoE>,<InitCmds> nodes in the ENI XML file and store the information in the proper list
+@param[IN] pCmdNode = pointer to the current node in the ENI XML file
+@param[IN] TopNode = pointer to the upper node in the ENI XML file
+@return pDesc = command descriptor that stores the information about the read command
+***************************************************************/
 EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
@@ -501,6 +528,13 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+/************************************************************
+Read the <SoE>,<InitCmds> nodes in the ENI XML file and store the information in the proper list
+@param[IN] pCmdNode = pointer to the current node in the ENI XML file
+@param[IN] TopNode = pointer to the upper node in the ENI XML file
+@return pDesc = command descriptor that stores the information about the read command
+***************************************************************/
+
 EcMailboxCmdDesc *ReadSoECmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
@@ -588,6 +622,12 @@ EcMailboxCmdDesc *ReadSoECmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
     return pDesc;
 }
 ///////////////////////////////////////////////////////////////////////////////
+/************************************************************
+Read the <AoE>,<InitCmds> nodes in the ENI XML file and store the information in the proper list
+@param[IN] pCmdNode = pointer to the current node in the ENI XML file
+@param[IN] TopNode = pointer to the upper node in the ENI XML file
+@return pDesc = command descriptor that stores the information about the read command
+***************************************************************/
 EcMailboxCmdDesc *ReadAoECmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
@@ -664,6 +704,15 @@ EcMailboxCmdDesc *ReadAoECmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+/************************************************************
+Read the <Master> node in the ENI XML file and store the information in a global variable
+@param[IN] pMasterNode = pointer to the <Master>  node in the ENI XML file
+@param[IN] nSlaves = total number of slaves
+@param[out] pMaster = pointer to the GLOBAL variable that stores information about master
+
+@return 1 if successful
+***************************************************************/
 int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
 {
     
@@ -724,7 +773,7 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
 	//create transition list. NOTE: the InitCmd are stored in pMasterInitCmd, the other list only contain the ADDRESS of the Init Cmd 
   
    pMaster->pMasterInitCmd=(InitCmdList *)pMasterCmdList;
-   //!!!!
+   
    InitTR *pMaster_IP=NULL;
    InitTR *pMaster_PI=NULL;
    InitTR *pMaster_BI=NULL;
@@ -818,6 +867,18 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/************************************************************
+Read the <Slave> node in the ENI XML file and store the information in ec_slave
+@param[IN] pSlave = pointer to the <Slave>  node in the ENI XML file
+@param[IN] Root = pointer to the Root of the ENI XML file
+@param[IN] autoIncrAddr = auto incremental address of the current slave
+@param[IN] bDcEnabled = TRUE if Distributed clock is enable for the current slave
+@param[IN] slave = index of the current slave
+@param[out] ec_slave[slave] stores the information read from the ENI XML file
+
+@return 1 if successful
+***************************************************************/
+
 int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boolean *bDcEnabled, int slave)
 {
     char *szName;
@@ -1170,6 +1231,17 @@ if (spMailbox != NULL)
      return 1;
 }
 //////////////////////////////////////////////////////////////////////////
+
+/************************************************************
+Reads the <Frame> node in the ENI XML file and stores the information
+@param[IN] pEcMaster = pointer to the GLOBAL variable Master
+@param[IN] pCyclic = pointer to the <Frame> node in the ENI XML file 
+@param[IN] Root = pointer to the Root of the ENI XML file
+@param[IN] autoIncrAddr = auto incremental address of the current slave
+@param[IN] bDcEnabled = TRUE if Distributed clock is enable for the current slave
+@param[IN] slave = index of the current slave
+@param[out] pCyclicDesc stores the information read from the ENI XML file
+***************************************************************/
 void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDesc)
 {
     if( pCyclic== NULL )
@@ -1306,11 +1378,14 @@ void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root
     }
     
 
-
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////
+/*******************************************************************************************
 
+Main function that reads the ENI XML file and call the functions to create the requested structures to store the information
+@param[IN] pMaster = pointer to the GLOBAL variable where to store information about the <Master> node
+@param[IN] Cyclic = pointer to the GLOBAL variable where to store information about the <Frame> node 
+@return 1 if successful
+*********************************************************************************************/
 int CreateDevice (EcMaster *pMaster, EcCycDesc *Cyclic) //Debug: XML passed by string buffer instead from file
 //int CreateDevice (const char *strXMLConfig)
 {

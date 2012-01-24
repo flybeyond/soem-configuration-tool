@@ -1,3 +1,20 @@
+/*******************************************
+ * SOEM Configuration tool
+ *
+ * File    : InitCmds.h
+ * Version : 1.2
+ * Date    : 24-01-2012
+ * History :
+ *          1.2, 24-01-2012, Improved readability
+ *			1.1  10-01-2012, add a field in the pending frame to store the expected working counter for a given command (field "Cnt" in ENI XML file)
+ *          1.0, 21-12-2011, Initial version 
+****************************************************************/
+
+#ifndef _InitCmds_H
+#define _InitCmds_H
+#endif
+
+
 #include "NetxEcCreateDevice.h"
 
 #include "nicdrv.h"
@@ -12,17 +29,17 @@
 #define MAX_SLAVECMD    50
 
 
-///////////////////////////////////////////////////////////////////////////////
+/*for list of command info in the sub telegram*/
 typedef struct TECAT_SLAVECMD_INFO
 {
     uint16      pSlave;
     uint32       invokeId;
     uint16      retry;
 	int      RxOffset;
-	uint16   wkc; //add 10/01/12
+	uint16   wkc; 
 } ECAT_SLAVECMD_INFO;
 
-
+/*for list of frame info*/
 typedef struct TECAT_SLAVEFRAME_INFO
 {
     

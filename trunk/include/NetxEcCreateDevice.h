@@ -1,3 +1,20 @@
+/*******************************************
+ * SOEM Configuration tool
+ *
+ * File    : NetxEcCreateDevice.h
+ * Version : 1.1
+ * Date    : 24-01-2012
+ * History :
+ *          1.1, 24-01-2012, Improved readability
+ *          1.0, 21-12-2011, Initial version 
+****************************************************************/
+
+
+
+
+
+
+
 #ifndef _NetxEcCreateDevice_H
 #define _NetxEcCreateDevice_H
 #endif

@@ -1,14 +1,27 @@
-/***new implementation of state machine**********/
-/*version 1.1:
--first we calculate the required transitions and store them in the bit of the global variable "EcatTransition"
--then for each transition: 1)we execute the init commands in the master lists (the "before slave" commands)
-                           2)we execute the init commands in slaves lists (one command per slave)
-						   
-there was an error in the former version: first ALL init commands in ALL master's list were executed and then slaves init commands
 
-for example: suppose we have two transition, IP and PS; in the former version it was executed pMaster->pIPInitCmd, then pMaster->pPSInitCmd 
-and then ec_slave[i].more->pIPInit and ec_slave[i].more->pPSInit. but this order is worng.
-the correct order of execution is pMaster->pIPInitCmd, ec_slave[i].more->pIPInit, pMaster->pPSInitCmd, ec_slave[i].more->pPSInit*/
+/*******************************************
+ * SOEM Configuration tool
+ *
+ * File    : InitCmds.c
+ * Version : 1.2
+ * Date    : 24-01-2012
+ * History :
+ *          1.2, 24-01-2012, Improved readability
+ *			1.1  10-01-2012, Fix the following error:
+                             -first we calculate the required transitions and store them in the bit of the global variable "EcatTransition"
+                             -then for each transition: 1)we execute the init commands in the master lists (the "before slave" commands)
+                              2)we execute the init commands in slaves lists (one command per slave)
+						    there was an error in the former version: first ALL init commands in ALL master's list were executed 
+							and then slaves init commands
+                            for example: suppose we have two transition, IP and PS; in the former version it was 
+							executed pMaster->pIPInitCmd, then pMaster->pPSInitCmd and then ec_slave[i].more->pIPInit and ec_slave[i].more->pPSInit. 
+							but this order is worng. the correct order of execution is pMaster->pIPInitCmd, ec_slave[i].more->pIPInit, pMaster->pPSInitCmd, ec_slave[i].more->pPSInit
+ *          1.0, 21-12-2011, Initial version 
+****************************************************************/
+
+
+
+
 
 uint16 EcatTransition=0; /* this variable must be golobal. it stores ALL required transition in theirs bit */
 
@@ -30,12 +43,12 @@ uint16 EcatTransition=0; /* this variable must be golobal. it stores ALL require
 #define MASTER_CMD                      OxFFFF
 
 
-///////////////////////////////////////////////////////////
-//MasterStateMachine
-//compares CurrentState and RequireSate and store in transition ALL the transitions needed to make currentState=ReqequesState
-//@param[IN]  pMaster pointer to Maaster descriptor 
-//[OUT] true if all transition have been executed
-
+/*****************************************************************************************
+MasterStateMachine
+compares CurrentState and RequireSate and store in transition ALL the transitions needed to make currentState=ReqequesState
+@param[IN]  pMaster = pointer to GLOBAL Maaster descriptor 
+@retun TRUE if all transition have been executed
+**********************************************************************************************/
 boolean MasterStateMachine (Ecmaster *pMaster)
 { 
   if (EcatTransition==0) //  if there's already at least one transition to be execute, skip
@@ -115,18 +128,7 @@ boolean MasterStateMachine (Ecmaster *pMaster)
 	    }
 	 
     }
-/* version 1.0
-	if (MasterInitCmd(Master))
-	{  //all master's init command are been executed; we can now execute the init command ofr the slaves
-	   if (SlaveInitCmd())
-	     //all init commands are been executed
-		 return TRUE;
-	}
- return (MasterTransition||SlaveTransition) ? FALSE : TRUE;   
-}
-   end version 1.0 */
-   
-  /* version 1.1*/
+
  if (MasterInitCmd(Master))
 	{  	   
 		 return TRUE;
@@ -134,12 +136,13 @@ boolean MasterStateMachine (Ecmaster *pMaster)
  return (EcatTransition ? FALSE : TRUE);   
 } 
 ////////////////////////////////////////////////////////////////
-//MasterInitCmd
-// check the value of EcatTransition, pick the proper init command list and pass it to function "InitCmd, update the value of EcatTransition
-//first, it executes all the transition with ECAT_INITCMD_BEFORE set to 1, then it call the SlaveInitCmd function 
-//@param[IN]  pMaster pointer to Maaster descriptor
-//@param[OUT] true if EcatTransition is 0 (all transitions has been executed)
-
+/****************************************************************************************************************
+MasterInitCmd
+check the value of EcatTransition, pick the proper init command list and pass it to function "InitCmd, update the value of EcatTransition
+first, it executes all the transition with ECAT_INITCMD_BEFORE set to 1, then it call the SlaveInitCmd function 
+@param[IN]  pMaster = pointer to GLOBAL Master descriptor
+@return TRUE if EcatTransition is 0 (all transitions has been executed)
+******************************************************************************************************************/
 boolean MasterInitCmd(Ecmaster *pMaster)
 {
  if (EcatTransition&ECAT_INITCMD_BEFORE) //skip if there isn't master's init command
@@ -263,10 +266,13 @@ boolean MasterInitCmd(Ecmaster *pMaster)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-//SlaveInitCmd
-//execute the init command for the slaves
-// return bSlaveReady (true if all the commands for the given transition are been executed)
 
+/***********************************************************************************
+SlaveInitCmd
+Executes the init command for the slaves
+@param[in] transition = requested transition
+@return bSlaveReady (true if all the commands for the given transition are been executed)
+******************************************************************************************/
 boolean SlaveInitCmd(uint16 transition)
 {
   boolean bSlaveReady=TRUE;
@@ -357,11 +363,13 @@ boolean SlaveInitCmd(uint16 transition)
 
 
 //////////////////////////////////////////////////////////////////////
-//InitCmd
-//@param [IN] IntiCmdList
-//@param [IN] index of slave or MASTER_CMD
-// return out if all command in the list are been executed
-
+/*****************************************************************
+InitCmd
+Executes the init commands requested for the given transition
+@param [IN] IntiCmdList = pointer to the init command list
+@param [IN] nSlave = index of slave or MASTER_CMD
+@return TRUE if all command in the list are been executed
+********************************************************************/
 boolean InitCmd(InitCmdList *List, uint16 nSlave)
 {
  uint16 i=0;
