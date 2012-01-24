@@ -1,0 +1,10 @@
+INSTRUCTION: 
+
+to create your own buffer string from an xml file UNDER WINDOWS	you have to:
+ -install perl
+ - put your xml file in a folder named "fs". this folder must be in the same directory of makefsdata
+ -open DOS prompt
+ -go to the directory that include makefsdata and "fs" folder
+ -digit: perl makefsdata.pl
+ -now there's a file called "fsdata.c" that contains your buffer
+ - delete the lines indicate in the file "fsdata.c" as "to delete"
