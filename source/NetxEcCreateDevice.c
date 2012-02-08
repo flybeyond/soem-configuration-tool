@@ -2,9 +2,10 @@
  * SOEM Configuration tool
  *
  * File    : NetxEcCreateDevice.c
- * Version : 1.1
- * Date    : 24-01-2012
+ * Version : 1.2
+ * Date    : 08-02-2012
  * History :
+ *          1.2, 08-02-2012, temporarily disabled SoE and AoE; changed parsing <CoE>,<InitCmds> parsing
  *          1.1, 24-01-2012, Improved readability
  *          1.0, 21-12-2011, Initial version 
 ****************************************************************/
@@ -440,7 +441,13 @@ Read the <CoE>,<InitCmds> nodes in the ENI XML file and store the information in
 @param[IN] pCmdNode = pointer to the current node in the ENI XML file
 @param[IN] TopNode = pointer to the upper node in the ENI XML file
 @return pDesc = command descriptor that stores the information about the read command
+
+History:
+        ver. 1.2, 08-02-2012, EcMailboxCmdDesc has been changed
+		ver  1.1, 24-01-2012 Initial version
+
 ***************************************************************/
+
 EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
@@ -450,6 +457,7 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
     char *strCommentTemp = NULL;
     
         uint32 nData = 0;
+		
  	spNode=mxmlFindElement(pCmdNode, TopNode, "Comment", NULL, NULL, MXML_DESCEND_FIRST);
         if( spNode != NULL ) {
             strCommentTemp = (char *)spNode->child->value.opaque;
@@ -473,12 +481,10 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
         pDesc = (EcMailboxCmdDesc *) malloc(sizeof(EcMailboxCmdDesc));
         memset(pDesc, 0, sizeof(EcMailboxCmdDesc));
         pDesc->protocol         = ETHERCAT_MBOX_TYPE_CANOPEN;
-        pDesc->dataLen              = sizeof(pDesc->coe.sdo) + nData;
-        pDesc->cmtLen               = 0;
-        pDesc->coe.sdo.Data      = SWAPDWORD(nData);
- 	    strcpy(pDesc->cmt,strComment);	
+        pDesc->DataLen          = nData;
+        strcpy(pDesc->cmt,strComment);	
         if (pData)
-            memcpy(pDesc->coe.data, pData, nData);
+            memcpy(pDesc->Data, pData, nData);
 
         //Read transitions during which this command should be sent
         mxml_node_t *spTransitions = mxmlFindElement(pCmdNode, TopNode, "Transition", NULL, NULL, MXML_DESCEND_FIRST);
@@ -510,13 +516,13 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
             pDesc->timeout = (unsigned short)(long) text2long(spNode->child->value.opaque);
         //SDO index
         if( (spNode = mxmlFindElement(pCmdNode, TopNode, "Index", NULL, NULL, MXML_DESCEND_FIRST) ))
-            pDesc->coe.sdo.Index = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
+            pDesc->Index = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
         //SDO Subindex
         if( (spNode = mxmlFindElement(pCmdNode, TopNode, "SubIndex", NULL, NULL, MXML_DESCEND_FIRST)) )
-            pDesc->coe.sdo.SubIndex = (unsigned char) text2uchar(spNode->child->value.opaque);
+            pDesc->SubIndex = (unsigned char) text2uchar(spNode->child->value.opaque);
         //command type 1 = SDO initiate upload ; 2 = SDO initiate download
         if( (spNode = mxmlFindElement(pCmdNode, TopNode, "Ccs", NULL, NULL, MXML_DESCEND_FIRST)) )
-            pDesc->coe.sdo.Idq.Ccs = (unsigned char) text2uchar(spNode->child->value.opaque);
+            pDesc->Ccs = (unsigned char) text2uchar(spNode->child->value.opaque);
         //Complete Access TODO: skip for now
 
 
@@ -533,8 +539,12 @@ Read the <SoE>,<InitCmds> nodes in the ENI XML file and store the information in
 @param[IN] pCmdNode = pointer to the current node in the ENI XML file
 @param[IN] TopNode = pointer to the upper node in the ENI XML file
 @return pDesc = command descriptor that stores the information about the read command
-***************************************************************/
 
+History:
+       ver 1.2, 08-02-2012, temporarily disabled
+       ver 1.1, 24-01-2012, Initial version
+***************************************************************/
+/*
 EcMailboxCmdDesc *ReadSoECmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
@@ -621,13 +631,19 @@ EcMailboxCmdDesc *ReadSoECmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
         free(strComment);	
     return pDesc;
 }
+*/
 ///////////////////////////////////////////////////////////////////////////////
 /************************************************************
 Read the <AoE>,<InitCmds> nodes in the ENI XML file and store the information in the proper list
 @param[IN] pCmdNode = pointer to the current node in the ENI XML file
 @param[IN] TopNode = pointer to the upper node in the ENI XML file
 @return pDesc = command descriptor that stores the information about the read command
+
+History:
+       ver 1.2, 08-02-2012, temporarily disabled
+       ver 1.1, 24-01-2012, Initial version
 ***************************************************************/
+/* 
 EcMailboxCmdDesc *ReadAoECmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
@@ -702,7 +718,7 @@ EcMailboxCmdDesc *ReadAoECmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 	
     return pDesc;
 }
-
+*/
 ///////////////////////////////////////////////////////////////////////////////
 
 /************************************************************
@@ -877,6 +893,9 @@ Read the <Slave> node in the ENI XML file and store the information in ec_slave
 @param[out] ec_slave[slave] stores the information read from the ENI XML file
 
 @return 1 if successful
+History:
+       ver 1.2, 08-02-2012, temporarily disabled parsing SoeE and AoE
+       ver 1.1, 24-01-2012, Initial version
 ***************************************************************/
 
 int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boolean *bDcEnabled, int slave)
@@ -1188,7 +1207,7 @@ if (spMailbox != NULL)
             }
 		
          }
-
+/*
     mxml_node_t *spCmdsSoE = mxmlFindElement(spMailbox, pSlave, "SoE", NULL, NULL, MXML_DESCEND);
     if (spCmdsSoE != NULL)
       { spNode=mxmlFindElement(spCmdsSoE,spMailbox,"InitCmds", NULL, NULL, MXML_DESCEND);
@@ -1224,7 +1243,7 @@ if (spMailbox != NULL)
             }
         }
     }
-
+*/
    ec_slave[slave].more->pSlaveMailboxCmd=(InitCmdList *)&SlaveMboxInitCmd;
  } 
 
