@@ -2,9 +2,10 @@
  * SOEM Configuration tool
  *
  * File    : NetxEcCreateDevice.h
- * Version : 1.1
- * Date    : 24-01-2012
+ * Version : 1.2
+ * Date    : 08-02-2012
  * History :
+ *          1.2, 08-02-2012, deleted SOE, SDO header; changed TEcMailboxCmdDesc
  *          1.1, 24-01-2012, Improved readability
  *          1.0, 21-12-2011, Initial version 
 ****************************************************************/
@@ -263,257 +264,21 @@ already exist in SOEM (I've just copied at all from eCos)
 #define ETHERCAT_MBOX_TYPE_FILEACCESS       4       // ETHERCAT_FOE_HEADER follows
 #define ETHERCAT_MBOX_TYPE_SOE              5       // ETHERCAT_SOE_HEADER follows
 
-#ifdef EC_LITTLE_ENDIAN /*LITTLE_ENDIAN*/
-typedef struct TETHERCAT_SDO_HEADER
-{
-    union
-    {
-        struct
-        {   // Initiate Download Request
-            uint8    SizeInd     : 1;
-            uint8    Expedited   : 1;
-            uint8    Size            : 2;
-            uint8    Complete        : 1;
-            uint8    Ccs         : 3;    // = 1
-        } Idq;
-        struct
-        {   // Initiate Download Response
-            uint8    Reserved        : 5;
-            uint8    Scs         : 3;    // = 3
-        } Ids;
-        struct
-        {   // Download Segment Request
-            uint8    LastSeg     : 1;
-            uint8    Size            : 3;
-            uint8    Toggle      : 1;
-            uint8    Ccs         : 3;    // = 0
-        } Dsq;
-        struct
-        {   // Download Segment Response
-            uint8    Reserved        : 4;
-            uint8    Toggle      : 1;
-            uint8    Scs         : 3;    // = 1
-        } Dss;
-        struct
-        {   // Initiate Upload Request
-            uint8    Reserved        : 4;
-            uint8    Complete        : 1;
-            uint8    Ccs         : 3;    // = 2
-        } Iuq;
-        struct
-        {   // Initiate Upload Response
-            uint8    SizeInd     : 1;
-            uint8    Expedited   : 1;
-            uint8    Size            : 2;
-            uint8    Reserved        : 1;
-            uint8    Scs         : 3;    // = 2
-        } Ius;
-        struct
-        {   // Upload Segment Request
-            uint8    Reserved        : 4;
-            uint8    Toggle      : 1;
-            uint8    Ccs         : 3;    // = 3
-        } Usq;
-        struct
-        {   // Upload Segment Response
-            uint8    LastSeg     : 1;
-            uint8    Size            : 3;
-            uint8    Toggle      : 1;
-            uint8    Scs         : 3;    // = 0
-        } Uss;
-        struct
-        {   // Abort Transfer
-            uint8    Reserved        : 5;
-            uint8    Ccs         : 3;    // = 4
-        } Abt;
-        uint8        CS;                             //
-    };
-    uint16  Index;                          //
-    uint8       SubIndex;                       //
-    uint32       Data;                               //
-} ETHERCAT_SDO_HEADER;
-#else /*BIG_ENDIAN*/
-typedef struct TETHERCAT_SDO_HEADER
-{
-    union
-    {
-        struct
-        {   // Initiate Download Request
-            uint8    Ccs         : 3;    // = 1
-            uint8    Complete        : 1;
-            uint8    Size            : 2;
-            uint8    Expedited   : 1;
-            uint8    SizeInd     : 1;
-        } Idq;
-        struct
-        {   // Initiate Download Response
-            uint8    Scs         : 3;    // = 3
-            uint8    Reserved        : 5;
-        } Ids;
-        struct
-        {   // Download Segment Request
-            uint8    Ccs         : 3;    // = 0
-            uint8    Toggle      : 1;
-            uint8    Size            : 3;
-            uint8    LastSeg     : 1;
-        } Dsq;
-        struct
-        {   // Download Segment Response
-            uint8    Scs         : 3;    // = 1
-            uint8    Toggle      : 1;
-            uint8    Reserved        : 4;
-        } Dss;
-        struct
-        {   // Initiate Upload Request
-            uint8    Ccs         : 3;    // = 2
-            uint8    Complete        : 1;
-            uint8    Reserved        : 4;
-        } Iuq;
-        struct
-        {   // Initiate Upload Response
-            uint8    Scs         : 3;    // = 2
-            uint8    Reserved        : 1;
-            uint8    Size            : 2;
-            uint8    Expedited   : 1;
-            uint8    SizeInd     : 1;
-        } Ius;
-        struct
-        {   // Upload Segment Request
-            uint8    Ccs         : 3;    // = 3
-            uint8    Toggle      : 1;
-            uint8    Reserved        : 4;
-        } Usq;
-        struct
-        {   // Upload Segment Response
-            uint8    Scs         : 3;    // = 0
-            uint8    Toggle      : 1;
-            uint8    Size            : 3;
-            uint8    LastSeg     : 1;
-        } Uss;
-        struct
-        {   // Abort Transfer
-            uint8    Ccs         : 3;    // = 4
-            uint8    Reserved        : 5;
-        } Abt;
-        uint8        CS;                             //
-    };
-    uint16  Index_swapj;                            //
-    uint8        SubIndex;                       //
-    uint32       Data_swapdj;                                //
-} ETHERCAT_SDO_HEADER;
-#endif
-#ifdef EC_LITTLE_ENDIAN /*LITTLE_ENDIAN*/
-typedef struct TETHERCAT_SOE_HEADER
-{
-    uint8    OpCode      : 3;    // 0 = unused, 1 = readReq, 2 = readRes, 3 = writeReq, 4 = writeRes
-                                    // 5 = notification (command changed notification)
-    uint8    InComplete  : 1;    // more follows
-    uint8    Error           : 1;    // an error word follows
-    uint8    DriveNo     : 3;    // drive number
-
-    union
-    {
-        struct
-        {
-            uint8        DataState   : 1;
-            uint8        Name        : 1;
-            uint8        Attribute   : 1;
-            uint8        Unit        : 1;
-            uint8        Min         : 1;
-            uint8        Max         : 1;
-            uint8        Value       : 1;
-            uint8        Default     : 1;
-        };
-        uint8    Elements;
-    };
-
-    union
-    {
-        uint16  IDN;            // SoE IDN                  if (InComplete==0)
-        uint16  FragmentsLeft;  // Pending fragments            if (InComplete==1)
-    };
-//  union
-//  {
-//      BYTE                                Data[]      // rest of mailbox data     if (Error==0 && OpCode!=ECAT_SOE_OPCODE_EMGCY)
-//      USHORT                          ErrorCode   //                                  if (Error==1)
-//      ETHERCAT_EMERGENCY_HEADER   Emergency   // rest of mailbox data     if (Error==0 && OpCode==ECAT_SOE_OPCODE_EMGCY)
-//  };
-} ETHERCAT_SOE_HEADER;
-#else /*BIG_ENDIAN*/
-typedef struct TETHERCAT_SOE_HEADER
-{
-    uint8    DriveNo     : 3;    // drive number
-    uint8    Error           : 1;    // an error word follows
-    uint8    InComplete  : 1;    // more follows
-    uint8    OpCode      : 3;    // 0 = unused, 1 = readReq, 2 = readRes, 3 = writeReq, 4 = writeRes
-                                    // 5 = notification (command changed notification)
-
-    union
-    {
-        struct
-        {
-            uint8        Default     : 1;
-            uint8        Value           : 1;
-            uint8        Max         : 1;
-            uint8       Min         : 1;
-            uint8        Unit            : 1;
-            uint8        Attribute   : 1;
-            uint8        Name            : 1;
-            uint8        DataState   : 1;
-        };
-        uint8    Elements;
-    };
-
-    union
-    {
-        uint16  IDN_swapj   ;           // SoE IDN                  if (InComplete==0)
-        uint16  FragmentsLeft_swapj;    // Pending fragments            if (InComplete==1)
-    };
-//  union
-//  {
-//      BYTE                                Data[]      // rest of mailbox data     if (Error==0 && OpCode!=ECAT_SOE_OPCODE_EMGCY)
-//      USHORT                          ErrorCode   //                                  if (Error==1)
-//      ETHERCAT_EMERGENCY_HEADER   Emergency   // rest of mailbox data     if (Error==0 && OpCode==ECAT_SOE_OPCODE_EMGCY)
-//  };
-} ETHERCAT_SOE_HEADER;
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
+//changed 08Feb2012
 typedef struct TEcMailboxCmdDesc
 {
     uint16                   transition;
-    uint16                   protocol;
-    uint32                    dataLen;
-    uint16                   cmtLen; // (excl. \0)
-    uint16                   timeout;    // in ms
-    uint16                   retries;
-    uint16                   reserved1;
-    uint32                    reserved2[4];
-    union
-    {
-        struct
-        {
-            ETHERCAT_SDO_HEADER sdo;
-            uint8                        data[20];        
-        } coe;
-        struct
-        {
-            ETHERCAT_SOE_HEADER head;
-            uint32                        attribute;
-            uint8                        data[20];        
-        } soe;
-        
-        struct
-        {
-            uint16                   nameSize;
-            uint16                   reserved;
-            uint32                       password;
-            char                        name[1];        // no \0
-            uint8                        data[20];
-        } foe;
-        uint8                        data[20];            
-    };
-  char    cmt[40];
+	uint16                   protocol;
+	char                     cmt[40];
+	uint16                   timeout;    // in ms
+	uint8                    Ccs
+    uint16                   Index;
+    uint16                   SubIndex; // (excl. \0)
+    unsigned char *          Data; 
+    uint32					 DataLen;
+    
 } EcMailboxCmdDesc;
 
 #define SIZEOF_EcMailboxCmdDesc(p)  (offsetof(EcMailboxCmdDesc, data) + p->dataLen + p->cmtLen + 1)
