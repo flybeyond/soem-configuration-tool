@@ -273,7 +273,7 @@ typedef struct TEcMailboxCmdDesc
 	uint16                   protocol;
 	char                     cmt[40];
 	uint16                   timeout;    // in ms
-	uint8                    Ccs
+	uint8                    Ccs;
     uint16                   Index;
     uint16                   SubIndex; // (excl. \0)
     unsigned char *          Data; 
@@ -281,7 +281,7 @@ typedef struct TEcMailboxCmdDesc
     
 } EcMailboxCmdDesc;
 
-#define SIZEOF_EcMailboxCmdDesc(p)  (offsetof(EcMailboxCmdDesc, data) + p->dataLen + p->cmtLen + 1)
+#define SIZEOF_EcMailboxCmdDesc(p)  (offsetof(EcMailboxCmdDesc,Data) + p->DataLen + (strlen(p->cmt) + 1))
 ///////////////////////////////////////////////////////////////////////////////
 //Cyclic Commands Descriptors
 
