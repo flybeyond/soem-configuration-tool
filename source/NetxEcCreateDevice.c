@@ -2,20 +2,19 @@
  * SOEM Configuration tool
  *
  * File    : NetxEcCreateDevice.c
- * Version : 1.2
- * Date    : 08-02-2012
+ * Version : 1.3
+ * Date    : 24-02-2012
  * History :
+ *          1.3, 24-02-2012, struct ec_slavet modified
  *          1.2, 08-02-2012, temporarily disabled SoE and AoE; changed parsing <CoE>,<InitCmds> parsing
  *          1.1, 24-01-2012, Improved readability
  *          1.0, 21-12-2011, Initial version 
 ****************************************************************/
 
-
 #include "NetxEcCreateDevice.h"
-#include "fsdata.c"
+#include "xmlprova.c"
 #include "ethercatmain.h"
 #include "ethercatbase.h"
-
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -894,6 +893,7 @@ Read the <Slave> node in the ENI XML file and store the information in ec_slave
 
 @return 1 if successful
 History:
+       ver 1.3, 24-02-2012, 1.3, 24-02-2012, struct ec_slavet modified
        ver 1.2, 08-02-2012, temporarily disabled parsing SoeE and AoE
        ver 1.1, 24-01-2012, Initial version
 ***************************************************************/
@@ -906,9 +906,9 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 		
 	memset(&ec_slave[slave], 0, sizeof(ec_slavet));
 	//!!!!
-	ec_slave[slave].more=malloc(sizeof(ec_slaveMoret)); //allocate space for the new fields
-	memset(&(ec_slave[slave].more),0,sizeof(ec_slaveMoret));
-	ec_slave[slave].more->autoIncAddr = autoIncrAddr;
+    //ec_slave[slave].more=malloc(sizeof(ec_slaveMoret)); //allocate space for the new fields
+	//memset(&(ec_slave[slave].more),0,sizeof(ec_slaveMoret));
+	ec_slave[slave].autoIncAddr = autoIncrAddr;
     mxml_node_t *spNodeInfo = mxmlFindElement(pSlave, Root, "Info", NULL, NULL, MXML_DESCEND);
 	mxml_node_t *spNodePhysAddr = mxmlFindElement(spNodeInfo, pSlave, "PhysAddr", NULL, NULL, MXML_DESCEND);
 	
@@ -959,11 +959,12 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         return -1;
     }
 
-    ec_slave[slave].more->serialNo = (uint32)(long) text2long(spNodeSerialNo->child->value.opaque);
+    ec_slave[slave].serialNo = (uint32)(long) text2long(spNodeSerialNo->child->value.opaque);
 #endif
 
+/*DA SPOSTARE IN TRANSITION IP
 
-    ec_slave[slave].Itype                  = ECAT_SLAVE_TYPE_SIMPLE;
+    ec_slave[slave].Itype = ECAT_SLAVE_TYPE_SIMPLE; 
 	
   mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML_DESCEND_FIRST);
 #ifdef DC_SUPPORTED
@@ -1019,6 +1020,8 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 
  #endif
 
+ END DA SPOSTARE IN TRANSITION IP
+*/ 
     mxml_node_t *pszName = mxmlFindElement(spNodeInfo, pSlave, "Name", NULL, NULL, MXML_DESCEND_FIRST);
 	    szName =(char*)(pszName->child->value.opaque);
 	
@@ -1030,10 +1033,11 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
     strncpy(ec_slave[slave].name, szName, EC_MAXNAME);
     ec_slave[slave].name[EC_MAXNAME] = 0;
 
+mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML_DESCEND_FIRST);
     
     if( spMailbox != NULL)
     {   //Slave supports a mailbox
-        ec_slave[slave].Itype   = ECAT_SLAVE_TYPE_MAILBOX;
+        //ec_slave[slave].Itype   = ECAT_SLAVE_TYPE_MAILBOX;
 		
         mxml_node_t *spSend=mxmlFindElement(spMailbox, pSlave, "Send", NULL, NULL, MXML_DESCEND_FIRST);
 	
@@ -1059,14 +1063,14 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 				spNode=mxmlFindElement(spSend, spMailbox, "PollTime", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
             {
-                ec_slave[slave].more->cycleMBoxPolling = TRUE;
-                ec_slave[slave].more->cycleMBoxPollingTime = (unsigned short)(long) text2long(spNode->child->value.opaque);
+                ec_slave[slave].cycleMBoxPolling = TRUE;
+                ec_slave[slave].cycleMBoxPollingTime = (unsigned short)(long) text2long(spNode->child->value.opaque);
             }
 			spNode=mxmlFindElement(spSend, spMailbox, "StatusBitAddr", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
             {
-                ec_slave[slave].more->stateMBoxPolling = TRUE;
-                ec_slave[slave].more->slaveAddressMBoxState = (unsigned short)(long) text2long(spNode->child->value.opaque);
+                ec_slave[slave].stateMBoxPolling = TRUE;
+                ec_slave[slave].slaveAddressMBoxState = (unsigned short)(long) text2long(spNode->child->value.opaque);
             }
         }
         //supports Ethernet over EtherCAT
@@ -1093,27 +1097,31 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 	
    //Init Cmds 
  	mxml_node_t *spCmdsInit = mxmlFindElement(pSlave, Root, "InitCmds", NULL, NULL, MXML_DESCEND_FIRST); 
-	 InitCmdList *SlaveInitCmd;
-	 CreateListInitCmd(&SlaveInitCmd);
+	 InitCmdList *SlaveInitCmd;//=(InitCmdList *)malloc(sizeof(InitCmdList));
+	 
 	 
     if (spCmdsInit != NULL)
-    { spNode=mxmlFindElement(spCmdsInit,pSlave,"InitCmd", NULL, NULL, MXML_DESCEND);
-	  
-        for( element = spNode; element; element = mxmlFindElement(element, spCmdsInit,"InitCmd" ,NULL, NULL,MXML_NO_DESCEND))
+    { 
+	   CreateListInitCmd(&SlaveInitCmd);
+	   spNode=mxmlFindElement(spCmdsInit,pSlave,"InitCmd", NULL, NULL, MXML_DESCEND);
+	  if (spNode != NULL)
+	  {
+        for( element = spNode; element != NULL; element = mxmlFindElement(element, spCmdsInit,"InitCmd" ,NULL, NULL,MXML_NO_DESCEND))
         {
-            EcInitCmdDesc *pCmdDesc = (EcInitCmdDesc *)malloc(sizeof(EcInitCmdDesc));
-			 pCmdDesc=ReadECatCmd(element,spCmdsInit);
+            //EcInitCmdDesc *pCmdDesc = (EcInitCmdDesc *)malloc(sizeof(EcInitCmdDesc));
+			 EcInitCmdDesc *pCmdDesc=ReadECatCmd(element,spCmdsInit);
             if( pCmdDesc )
             {
-                ec_slave[slave].more->initcmdCnt++;
-                ec_slave[slave].more->initcmdLen += SIZEOF_EcInitCmdDesc(pCmdDesc);
+                ec_slave[slave].initcmdCnt++;
+                ec_slave[slave].initcmdLen += SIZEOF_EcInitCmdDesc(pCmdDesc);
 				                
 				InsertInitCmd(&SlaveInitCmd, pCmdDesc);
                
                 free(pCmdDesc);
             }
         }
-		ec_slave[slave].more->pSlaveInitCmd=(InitCmdList *)SlaveInitCmd;
+	  }	
+		ec_slave[slave].pSlaveInitCmd=(InitCmdList *)SlaveInitCmd;
 		//!!!!
 		//create transition lists
 		InitTR *pSlave_IP=NULL;
@@ -1168,17 +1176,17 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 		   
 	loop=loop->nextCmd;
     }
-	ec_slave[slave].more->pIPInit=(InitTR *)pSlave_IP;
-	ec_slave[slave].more->pPIInit=(InitTR *)pSlave_PI;
-	ec_slave[slave].more->pBIInit=(InitTR *)pSlave_BI;
-	ec_slave[slave].more->pSIInit=(InitTR *)pSlave_SI;
-	ec_slave[slave].more->pOIInit=(InitTR *)pSlave_OI;
-	ec_slave[slave].more->pPSInit=(InitTR *)pSlave_PS;
-	ec_slave[slave].more->pSPInit=(InitTR *)pSlave_SP;
-	ec_slave[slave].more->pSOInit=(InitTR *)pSlave_SO;
-	ec_slave[slave].more->pOSInit=(InitTR *)pSlave_OS;
-	ec_slave[slave].more->pOPInit=(InitTR *)pSlave_OP;
-	ec_slave[slave].more->pIBInit=(InitTR *)pSlave_IB;
+	ec_slave[slave].pIPInit=(InitTR *)pSlave_IP;
+	ec_slave[slave].pPIInit=(InitTR *)pSlave_PI;
+	ec_slave[slave].pBIInit=(InitTR *)pSlave_BI;
+	ec_slave[slave].pSIInit=(InitTR *)pSlave_SI;
+	ec_slave[slave].pOIInit=(InitTR *)pSlave_OI;
+	ec_slave[slave].pPSInit=(InitTR *)pSlave_PS;
+	ec_slave[slave].pSPInit=(InitTR *)pSlave_SP;
+	ec_slave[slave].pSOInit=(InitTR *)pSlave_SO;
+	ec_slave[slave].pOSInit=(InitTR *)pSlave_OS;
+	ec_slave[slave].pOPInit=(InitTR *)pSlave_OP;
+	ec_slave[slave].pIBInit=(InitTR *)pSlave_IB;
 		
     }
     
@@ -1199,8 +1207,9 @@ if (spMailbox != NULL)
             pCmdDesc = ReadCANopenCmd(element,spCmdsCAN);
                if( pCmdDesc )
                 {
-                  ec_slave[slave].more->mboxCmdCnt++;
-                  ec_slave[slave].more->mboxCmdLen += (unsigned short)SIZEOF_EcMailboxCmdDesc(pCmdDesc);
+                  ec_slave[slave].mboxCmdCnt++;
+
+                  ec_slave[slave].mboxCmdLen += (unsigned short)SIZEOF_EcMailboxCmdDesc(pCmdDesc);
                  InsertMboxInitCmd(&SlaveMboxInitCmd,pCmdDesc);
                  free(pCmdDesc);
                 }
@@ -1244,7 +1253,7 @@ if (spMailbox != NULL)
         }
     }
 */
-   ec_slave[slave].more->pSlaveMailboxCmd=(InitCmdList *)&SlaveMboxInitCmd;
+   ec_slave[slave].pSlaveMailboxCmd=(InitCmdList *)&SlaveMboxInitCmd;
  } 
 
      return 1;

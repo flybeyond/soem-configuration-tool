@@ -2,9 +2,10 @@
  * SOEM Configuration tool
  *
  * File    : InitCmds.c
- * Version : 1.2
- * Date    : 24-01-2012
+ * Version : 1.3
+ * Date    : 24-02-2012
  * History :
+ *			1.3, 24-02-2012, struct ec_slavet modified
  *          1.2, 24-01-2012, Improved readability
  *			1.1  10-01-2012, add a field in the pending frame to store the expected working counter for a given command (field "Cnt" in ENI XML file)
  *          1.0, 21-12-2011, Initial version 
@@ -13,11 +14,10 @@
 
 #include "InitCmds.h"
 
-//////////////////////////////////////////////////////////////////////////////
-///\brief initialize PendFrame.
+
 void InitializeFrame(void)
 { int i;
-
+/****inizializzazione PendFrame****************/
  for (i=0; i<EC_MAXBUF; i++)
   {  PendFrame[i].pframe=&ec_txbuf[i];
      PendFrame[i].bufstat=(int *)&ec_txbuf[i];
@@ -27,7 +27,6 @@ void InitializeFrame(void)
 		    PendFrame[i].cmdInfo[jk].invokeId=0;
 			PendFrame[i].cmdInfo[jk].retry=0;
 			PendFrame[i].cmdInfo[jk].RxOffset=0;
-			PendFrame[i].cmdInfo[jk].wkc=0; 
 		    }
 	  PendFrame[i].nInfo=0;
 	  PendFrame[i].buflength=&ec_txbuflength[i];
@@ -59,145 +58,135 @@ uint16  GetTargetState(uint16 transition)
 
 
 
-/**************************************************************************
- Processes init commands that should be sent in this transition.
- @param[in] transition = transition requested
- @param[in] nSlave = current slave
- @param[in] InitCmdsLoop = list of the init commands for the requested transition for the current slave
-***************************************************************************************/
-void   SlaveStartInitCmds(uint16 transition, uint16 nSlave,InitTR * InitCmdsLoop)
+//////////////////////////////////////////////////////////////////////////////
+///\brief Processes init commands that should be sent in this transition.
+void   SlaveStartInitCmds(uint16 transition, uint16 nSlave,InitTR * InitCmsLoop)
 {
    uint16 i=0;
 
-    if ( ec_slave[nSlave].more->cInitCmds == INITCMD_INACTIVE )
-        ec_slave[nSlave].more->cInitCmds = 0;
-   //!!!!
-    if ( ec_slave[nSlave].more->cInitCmds < ec_slave[nSlave].more->initcmdCnt )
+    if ( ec_slave[nSlave].cInitCmds == INITCMD_INACTIVE )
+        ec_slave[nSlave].cInitCmds = 0;
+   
+    if ( ec_slave[nSlave].cInitCmds < ec_slave[nSlave].initcmdCnt )
     {//skip InitCmd already sent
-      while(i!=ec_slave[nSlave].more->cInitCmds)  
-	         {InitCmdsLoop=InitCmdsLoop->next;
+      while(i!=ec_slave[nSlave].cInitCmds)  
+	         {InitCmsLoop=InitCmsLoop->next;
 			  i++;} 
 	
 	
 	//init command found
-        EcInitCmdDesc *p    = InitCmdsLoop->InitCmd; //m_ppInitCmds[m_cInitCmds];
+        EcInitCmdDesc *p    = InitCmsLoop->InitCmd; //m_ppInitCmds[m_cInitCmds];
         //set timeout for init command
         //m_tInitCmds.Start(p->timeout); TODO: to be implemented
         //m_rInitCmds         = p->retries;
-		
         //send init command to slave TODO: to be implemented
         //m_pMaster->EcatCmdReq(this, transition, p->ecHead.cmd, p->ecHead.adp, p->ecHead.ado,
             //(p->ecHead.dlength, p->Data);//SendInitCommand(p, transition);
-      ec_slave[nSlave].more->cInitCmds++;  
+      ec_slave[nSlave].cInitCmds++;  
     }
     else
     {
-        ec_slave[nSlave].more->cInitCmds=INITCMD_INACTIVE;
-        ec_slave[nSlave].more->currState = GetTargetState(transition);
+        ec_slave[nSlave].cInitCmds=INITCMD_INACTIVE;
+        ec_slave[nSlave].currState = GetTargetState(transition);
         
     }
 }
-/**************************************************************************
-Executes the state machine of the EtherCAT slave.
-@param[in] pMaster = pointer to the GLOBAL variable EcMaster
-@param[in] nSlave = current slave
-@return TRUE if the slave reaches the requested state
-***************************************************************************************/
+///////////////////////////////////////////////////////////////////////////////
+///\brief Executes the state machine of the EtherCAT slave.
 boolean    SlaveStateMachine(uint16 nSlave, EcMaster *pMaster)
 {
-    if ( ec_slave[nSlave].more->currState != ec_slave[nSlave].more->reqState )
+    if ( ec_slave[nSlave].currState != ec_slave[nSlave].reqState )
     {
         uint16  transition = 0;
-		
 		InitTR *List;
-        switch ( ec_slave[nSlave].more->currState )
+        switch ( ec_slave[nSlave].currState )
         {
         case EC_STATE_INIT:
-            switch ( ec_slave[nSlave].more->reqState )
+            switch ( ec_slave[nSlave].reqState )
             {
             case EC_STATE_PRE_OP:
             case EC_STATE_SAFE_OP:
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_I_P;
-				List=(InitTR *)&(ec_slave[nSlave].more->pIPInit);
+				List=(InitTR *)&(ec_slave[nSlave].pIPInit);
                 break;
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_I_B;
             }
             break;
         case EC_STATE_PRE_OP:
-            switch ( ec_slave[nSlave].more->reqState )
+            switch ( ec_slave[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_P_I;
-				List=(InitTR *)&(ec_slave[nSlave].more->pPIInit);
+				List=(InitTR *)&(ec_slave[nSlave].pPIInit);
                 break;
             case EC_STATE_SAFE_OP:
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_P_S;
-				List=(InitTR *)&(ec_slave[nSlave].more->pPSInit);
+				List=(InitTR *)&(ec_slave[nSlave].pPSInit);
                 break;
             }
             break;
         case EC_STATE_BOOT:
-            switch ( ec_slave[nSlave].more->reqState )
+            switch ( ec_slave[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_PRE_OP:
             case EC_STATE_SAFE_OP:
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_B_I;
-				List=(InitTR *)&(ec_slave[nSlave].more->pBIInit);
+				List=(InitTR *)&(ec_slave[nSlave].pBIInit);
                 break;
             }
         case EC_STATE_SAFE_OP:
-            switch ( ec_slave[nSlave].more->reqState )
+            switch ( ec_slave[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_S_I;
-				List=(InitTR *)&(ec_slave[nSlave].more->pSIInit);
+				List=(InitTR *)&(ec_slave[nSlave].pSIInit);
                 break;
             case EC_STATE_PRE_OP:
                 transition      = ECAT_INITCMD_S_P;
-				List=(InitTR *)&(ec_slave[nSlave].more->pSPInit);
+				List=(InitTR *)&(ec_slave[nSlave].pSPInit);
                 break;
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_S_O;
-				List=(InitTR *)&(ec_slave[nSlave].more->pSOInit);
+				List=(InitTR *)&(ec_slave[nSlave].pSOInit);
                 break;
             }
             break;
         case EC_STATE_OPERATIONAL:
-            switch ( ec_slave[nSlave].more->reqState )
+            switch ( ec_slave[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_O_I;
-				List=(InitTR *)&(ec_slave[nSlave].more->pOIInit);
+				List=(InitTR *)&(ec_slave[nSlave].pOIInit);
                 break;
             case EC_STATE_PRE_OP:
                 transition      = ECAT_INITCMD_O_P;
-				List=(InitTR *)&(ec_slave[nSlave].more->pOPInit);
+				List=(InitTR *)&(ec_slave[nSlave].pOPInit);
                 break;
             case EC_STATE_SAFE_OP:
                 transition      = ECAT_INITCMD_O_S;
-				List=(InitTR *)&(ec_slave[nSlave].more->pOSInit);
+				List=(InitTR *)&(ec_slave[nSlave].pOSInit);
                 break;
             }
             break;
         }
         if ( transition && pMaster->m_cInitCmds == INITCMD_INACTIVE )
-        {   //transition set and no init commands active -> send init command defined for this transition
+        {   //transition set and no init commands active -> send first init command defined for this transition
             SlaveStartInitCmds(transition, nSlave, List);
         }
     }
     
     
-    ec_slave[nSlave].more->oldCurrState = ec_slave[nSlave].more->currState;
+    ec_slave[nSlave].oldCurrState = ec_slave[nSlave].currState;
     
-    return ec_slave[nSlave].more->reqState == ec_slave[nSlave].more->currState;
+    return ec_slave[nSlave].reqState == ec_slave[nSlave].currState;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -205,18 +194,10 @@ boolean    SlaveStateMachine(uint16 nSlave, EcMaster *pMaster)
 void    SlaveRequestState(uint16 state, uint16 nSlave)
 {
     
-    ec_slave[nSlave].more->reqState = state;
+    ec_slave[nSlave].reqState = state;
 }
-//////////////////////////////////////////////////////////////////////////////
-
-/**************************************************************************
-Processes init commands that should be sent in this transition.
-@param[in] stateValue = current state of the master
-@param[in] stateNext = next state of the master
-@param[in] pMaster = pointer to the GLOBAL variable EcMaster
-@param[in] InitCmsLoop = list of the init commands for the requested transition 
-
-***************************************************************************************/
+////////////////////////////////////////////////////////////////////////////////
+///\brief Processes init commands that should be sent in this transition.
 void    MasterStartInitCmds(uint16 stateValue, EC_MASTER_STATE stateNext, EcMaster *pMaster, InitTR *InitCmsLoop)
 {
     uint16 i=0;
@@ -225,9 +206,10 @@ void    MasterStartInitCmds(uint16 stateValue, EC_MASTER_STATE stateNext, EcMast
             pMaster->m_cInitCmds=0;
    
     if ( pMaster->m_cInitCmds < pMaster->initcmdCnt )
-		
+	  
     { //skip initcmd already sent
-         while(i!=pMaster->m_cInitCmds)  
+   
+      while(i!=pMaster->m_cInitCmds)  
 	         {InitCmsLoop=InitCmsLoop->next;
 			  i++;}   
 
@@ -235,7 +217,6 @@ void    MasterStartInitCmds(uint16 stateValue, EC_MASTER_STATE stateNext, EcMast
         EcInitCmdDesc *p    =InitCmsLoop->InitCmd; //in InitCmsLoop->InitCmd is stored the ADDRESS of the InitCmd
         //Set timeout for init commands
         //m_tInitCmds.Start(p->timeout); //TODO: to be implemented
-		
         //send init command defined for this transition
 
        // EcatCmdReq(NULL, stateValue, p->ecHead.cmd, p->ecHead.adp, p->ecHead.ado, p->ecHead.dlength, p->data); //TODO: TO BE IMPLEMENTED/REPLACED with ec_setupdatagram and/or ec_adddatagram
@@ -273,11 +254,7 @@ void    MasterStartInitCmds(uint16 stateValue, EC_MASTER_STATE stateNext, EcMast
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-/**************************************************************************
-Executes the state machine of the EtherCAT master.
-@param[in] pMaster = pointer to the GLOBAL variable EcMaster
-@return TRUE if the master and all slaves reach the requested state
-***************************************************************************************/
+///\brief Executes the state machine of the EtherCAT master.
 boolean MasterStateMachine(EcMaster *pMaster)
 {
     
@@ -285,7 +262,6 @@ boolean MasterStateMachine(EcMaster *pMaster)
     boolean bSlavesReady = TRUE;
      uint16 i;
 	 InitTR *List;
-	 //!!!! 
     //execute state machine of all slaves and
     //check if all slaves are in the requested state (--> bSlaveReady == true )
     for (i=0; i < ec_slavecount; i++ ) 
@@ -482,6 +458,7 @@ boolean MasterStateMachine(EcMaster *pMaster)
     return (bMasterReady && bSlavesReady) ? TRUE :FALSE;
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////
 ///\brief Request EtherCAT master to change to the specified state.
 void    MasterRequestState(uint16 state, EcMaster *pMaster)
@@ -502,21 +479,19 @@ void    MasterRequestState(uint16 state, EcMaster *pMaster)
     }
     
 }
-//////////////////////////////////////////////////////////////////////////////////
 
-/******************************************************************
-Process EtherCAT command request.POSSIBLE IMPLEMENTATION OF FRAME MULTI-COMMAND
-NOTE: by now this function isn't called anywhere
-@param[in] nSlave = current slave
-@param[in] invokeId, wkc, cmd, adp, ado, len, pData = parameters fo the specific command
-@return EC_ERR_OK if successful
-***********************************************************************/
+/*************************************MA.VI. BEGIN: FUNZIONI PER LA GESTIONE DI FRAME CON PIU' COMANDI*****************************/
 
-ec_err   MasterEcatCmdReq(uint16 nSlave, uint32 invokeId, uint16 wkc, uint8 cmd, uint16 adp, uint16 ado, uint16 len, void *pData)
+///\brief Process EtherCAT command request.
+
+
+ec_err   MasterEcatCmdReq(uint16 nSlave, uint32 invokeId, uint8 cmd, uint16 adp, uint16 ado, uint16 len, void *pData)
    
 {
      boolean more=FALSE;
-    
+    //if ( len + ETYPE_EC_OVERHEAD > sizeof(ETHERNET_88A4_MAX_FRAME)-ETHERNET_FRAME_LEN-ETYPE_88A4_IO_HEADER_LEN )
+    //    return ECERR_DEVICE_INVALIDSIZE; TODO: TO BE IMPLEMENTED
+
     int idx=0;
 	//check if pending frame exists 
 	 while (*(PendFrame[idx].bufstat)!=EC_BUF_ALLOC || idx<EC_MAXBUF) idx++;
@@ -525,18 +500,23 @@ ec_err   MasterEcatCmdReq(uint16 nSlave, uint32 invokeId, uint16 wkc, uint8 cmd,
     {//pending frame exists, that has not been sent jet
         if ( ( *(PendFrame[idx].buflength) < len + ETYPE_EC_OVERHEAD || PendFrame[idx].nInfo == MAX_SLAVECMD) )
         {   //sub telegram does not fit into pending frame -> send pending frame and create new one
-		    
+		    /*************Rocco:possibile implementazione*******************/
 		     ec_outframe_red(idx); 
-            			 
+             //free(pPendFrame); //una volta mandato il pacchetto, svuoto PendFrame 
+			 //NO: ho bisogno di mantenere le informazioni per la ricezione
+			/*******************************************************/
+			//LONG result = EcatCmdFlush();
+           // if ( result != ECERR_NOERR )
+             //   return result;
+			 
 			//create new frame 
 			idx=ec_getindex();
 		    ec_setupdatagram(PendFrame[idx].pframe,cmd,idx,adp,ado,len, pData);
-    	 //TODO: DO SOMTHING LIKE ec_push_index()
+    	 //TODO: fare qualcosa di simile a ec_push_index()
 		}
 		else
 		  {//add sub telegram to the same frame
 		    more= TRUE;
-			//store the position of the current command within the frame
 		    PendFrame[idx].cmdInfo[PendFrame[idx].nInfo].RxOffset=ec_adddatagram(PendFrame[idx].pframe, cmd, idx, more, adp, ado, len, pData);
 		   }
     }
@@ -545,27 +525,24 @@ ec_err   MasterEcatCmdReq(uint16 nSlave, uint32 invokeId, uint16 wkc, uint8 cmd,
    {   //new pending frame 
 	    idx=ec_getindex();
 		ec_setupdatagram(PendFrame[idx].pframe,cmd,idx,adp,ado,len, pData);
-		//TODO: DO SOMTHING LIKE ec_push_index()
+		//TODO: fare qualcosa di simile a ec_push_index()
 		
 	}
 	//update all the flieds
 	
     PendFrame[idx].cmdInfo[PendFrame[idx].nInfo].pSlave     = nSlave;
     PendFrame[idx].cmdInfo[PendFrame[idx].nInfo].invokeId    = invokeId;
-	PendFrame[idx].cmdInfo[PendFrame[idx].nInfo].wkc=     wkc; 
-    //PendFrame.cmdInfo[PendFrame.nInfo].retry          = nRetry; //TODO: FIND nRetry
+    //PendFrame.cmdInfo[PendFrame.nInfo].retry          = nRetry; //TODO: trovare nRetry
     PendFrame[idx].nInfo++;
     
     return EC_ERR_OK;
 }
+	
+
 
 ////////////////////////////////////////////////////////////////////////////////
-
-/********************************************************************
-Send pending frame
-@return EC_ERR_OK if successful
-**********************************************************************/
-ec_err EcatCmdFlush(void)
+/*spedisce i frame pendenti*/
+ec_err EcatCmdFlush()
 {int idx=0;
 	//check if pending frame exists 
 	 while (*(PendFrame[idx].bufstat)!=EC_BUF_ALLOC || idx<EC_MAXBUF) idx++;
@@ -578,7 +555,6 @@ ec_err EcatCmdFlush(void)
 	
   return EC_ERR_OK;
   }
-////////////////////////////////////////////////////////////////////////////////  
 
 	
  

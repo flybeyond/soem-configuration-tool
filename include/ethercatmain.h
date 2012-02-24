@@ -1,12 +1,9 @@
 /*
  * Simple Open EtherCAT Master Library 
  *
- * File    : ethercatmain.h 
- * Version : 1.2.6
- * Date    : 21-12-2011
- * History:  
- *         1.2.6, 21-12-2011, Add fields to ec_slave
- *         1.2.5, 09-04-2011, SOEM Initial Version   
+ * File    : ethercatmain.h
+ * Version : 1.2.5
+ * Date    : 09-04-2011
  * Copyright (C) 2005-2011 Speciaal Machinefabriek Ketels v.o.f.
  * Copyright (C) 2005-2011 Arthur Ketels
  * Copyright (C) 2008-2009 TU/e Technische Universiteit Eindhoven 
@@ -119,7 +116,7 @@ typedef struct PACKED
 #define EC_SMENABLEMASK		0xfffeffff
 ////////////////////////////////////////////////////////////////////
 /**ROCCO: NEW EC_SLAVE FIELD**/
-typedef struct
+/*typedef struct
 {
 	
 	uint16              autoIncAddr;
@@ -170,6 +167,7 @@ typedef struct
 	void   *pBIInit;	
 
  }ec_slaveMoret;
+ */
 //////////////////////////////////////////////////////////
 
 /** for list of ethercat slaves detected */
@@ -317,7 +315,53 @@ typedef struct
     char				name[EC_MAXNAME + 1];
 
 /*ROCCO: pointer to the new fields***/
-  ec_slaveMoret *more;	
+uint16              autoIncAddr;
+	#ifndef SLAVE_WITHOUT_SN
+     uint32          serialNo;
+#endif	 
+	
+	struct
+    {
+        uint16                      reserved0               : 1;
+        uint16                      mboxOutShortSend        : 1;
+        uint16                      cycleMBoxPolling        : 1;
+        uint16                      stateMBoxPolling        : 1;
+        uint16                      referenceClock          : 1;
+        uint16                      forceEndOfBranch        : 1;
+        
+    };
+	
+	uint16              initcmdCnt;
+    uint16              initcmdLen;
+	uint16              mboxCmdCnt;
+    uint16              mboxCmdLen;
+    uint16             slaveAddressMBoxState;
+    uint16             cycleMBoxPollingTime;
+    uint16             bootOutStart;
+    uint16             bootOutLen;
+    uint16             bootInStart;
+    uint16             bootInLen;
+    uint16             prevPhysAddr;
+ //init command
+    uint16                      currState;
+    uint16                      oldCurrState;
+    uint16                      reqState;
+	uint16                      cInitCmds;
+
+	void   *pSlaveInitCmd;  //to be casted to type EcInitCmdDesc defined in NetxEcCreateDevice.h
+	void   *pSlaveMailboxCmd; //to be casted to type  EcMailboxCmdDesc defined in NetxEcCreateDevice.h
+	void   *pIPInit;
+    void   *pPIInit;
+    void   *pPSInit;
+	void   *pSPInit;
+	void   *pSOInit;
+	void   *pSIInit;
+	void   *pOSInit;
+	void   *pOPInit;
+	void   *pOIInit;
+	void   *pIBInit;
+	void   *pBIInit;
+//  ec_slaveMoret *more;	
 
 
 } ec_slavet;
