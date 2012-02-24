@@ -1032,7 +1032,26 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
     }
     strncpy(ec_slave[slave].name, szName, EC_MAXNAME);
     ec_slave[slave].name[EC_MAXNAME] = 0;
-
+	
+//ADD 24-02-2012	
+mxml_node_t *pszPhysics = mxmlFindElement(spNodeInfo, pSlave, "Physics", NULL, NULL, MXML_DESCEND_FIRST);
+  if (pszPhysics)
+    {
+	  szName =(char*)(pszPhysics->child->value.opaque);
+	  Sizephy=strlen(szName);
+	  int i;
+	  for (i=0;i<Sizephy;i++)
+	    { 
+		  if (szName[i]==PHYSICS_Y)
+		      ec_slave[slave].ptype|=(PHYSICS_MII<<2*i);
+		  if (szName[i]==PHYSICS_K)
+		      ec_slave[slave].ptype|=(PHYSICS_EBUS<<2*i);
+		  if (szName[i]==PHYSICS_)
+		      ec_slave[slave].ptype|=(PHYSICS_NOT_IMPL<<2*i);
+		  }
+	}
+	//end add 24-02-2012
+	
 mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML_DESCEND_FIRST);
     
     if( spMailbox != NULL)

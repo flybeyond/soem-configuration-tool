@@ -63,9 +63,15 @@
 
 
 #define INITCMD_INACTIVE    0xffff 
+//ADD 24-02-2012	
+#define PHYSICS_Y 0x59
+#define PHYSICS_K 0x4B
+#define PHYSICS_  0x00
 
-
-
+#define PHYSICS_MII  0x03
+#define PHYSICS_EBUS  0x02
+#define PHYSICS_NOT_IMPL  0x00
+//end add 24-02-2012
 /////////////////////////////////////////////////////////////////////////7
 typedef enum EEC_MASTER_STATE
 {
