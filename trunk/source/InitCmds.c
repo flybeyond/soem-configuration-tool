@@ -2,9 +2,10 @@
  * SOEM Configuration tool
  *
  * File    : InitCmds.c
- * Version : 1.3
- * Date    : 24-02-2012
+ * Version : 1.4
+ * Date    : 27-02-2012
  * History :
+ *          1.4, 27-02-2012, global variables modified
  *			1.3, 24-02-2012, struct ec_slavet modified
  *          1.2, 24-01-2012, Improved readability
  *			1.1  10-01-2012, add a field in the pending frame to store the expected working counter for a given command (field "Cnt" in ENI XML file)
@@ -64,12 +65,12 @@ void   SlaveStartInitCmds(uint16 transition, uint16 nSlave,InitTR * InitCmsLoop)
 {
    uint16 i=0;
 
-    if ( ec_slave[nSlave].cInitCmds == INITCMD_INACTIVE )
-        ec_slave[nSlave].cInitCmds = 0;
+    if ( ec_slaveMore[nSlave].cInitCmds == INITCMD_INACTIVE )
+        ec_slaveMore[nSlave].cInitCmds = 0;
    
-    if ( ec_slave[nSlave].cInitCmds < ec_slave[nSlave].initcmdCnt )
+    if ( ec_slaveMore[nSlave].cInitCmds < ec_slaveMore[nSlave].initcmdCnt )
     {//skip InitCmd already sent
-      while(i!=ec_slave[nSlave].cInitCmds)  
+      while(i!=ec_slaveMore[nSlave].cInitCmds)  
 	         {InitCmsLoop=InitCmsLoop->next;
 			  i++;} 
 	
@@ -82,12 +83,12 @@ void   SlaveStartInitCmds(uint16 transition, uint16 nSlave,InitTR * InitCmsLoop)
         //send init command to slave TODO: to be implemented
         //m_pMaster->EcatCmdReq(this, transition, p->ecHead.cmd, p->ecHead.adp, p->ecHead.ado,
             //(p->ecHead.dlength, p->Data);//SendInitCommand(p, transition);
-      ec_slave[nSlave].cInitCmds++;  
+      ec_slaveMore[nSlave].cInitCmds++;  
     }
     else
     {
-        ec_slave[nSlave].cInitCmds=INITCMD_INACTIVE;
-        ec_slave[nSlave].currState = GetTargetState(transition);
+        ec_slaveMore[nSlave].cInitCmds=INITCMD_INACTIVE;
+        ec_slaveMore[nSlave].currState = GetTargetState(transition);
         
     }
 }
@@ -95,84 +96,84 @@ void   SlaveStartInitCmds(uint16 transition, uint16 nSlave,InitTR * InitCmsLoop)
 ///\brief Executes the state machine of the EtherCAT slave.
 boolean    SlaveStateMachine(uint16 nSlave, EcMaster *pMaster)
 {
-    if ( ec_slave[nSlave].currState != ec_slave[nSlave].reqState )
+    if ( ec_slaveMore[nSlave].currState != ec_slaveMore[nSlave].reqState )
     {
         uint16  transition = 0;
 		InitTR *List;
-        switch ( ec_slave[nSlave].currState )
+        switch ( ec_slaveMore[nSlave].currState )
         {
         case EC_STATE_INIT:
-            switch ( ec_slave[nSlave].reqState )
+            switch ( ec_slaveMore[nSlave].reqState )
             {
             case EC_STATE_PRE_OP:
             case EC_STATE_SAFE_OP:
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_I_P;
-				List=(InitTR *)&(ec_slave[nSlave].pIPInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pIPInit);
                 break;
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_I_B;
             }
             break;
         case EC_STATE_PRE_OP:
-            switch ( ec_slave[nSlave].reqState )
+            switch ( ec_slaveMore[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_P_I;
-				List=(InitTR *)&(ec_slave[nSlave].pPIInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pPIInit);
                 break;
             case EC_STATE_SAFE_OP:
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_P_S;
-				List=(InitTR *)&(ec_slave[nSlave].pPSInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pPSInit);
                 break;
             }
             break;
         case EC_STATE_BOOT:
-            switch ( ec_slave[nSlave].reqState )
+            switch ( ec_slaveMore[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_PRE_OP:
             case EC_STATE_SAFE_OP:
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_B_I;
-				List=(InitTR *)&(ec_slave[nSlave].pBIInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pBIInit);
                 break;
             }
         case EC_STATE_SAFE_OP:
-            switch ( ec_slave[nSlave].reqState )
+            switch ( ec_slaveMore[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_S_I;
-				List=(InitTR *)&(ec_slave[nSlave].pSIInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pSIInit);
                 break;
             case EC_STATE_PRE_OP:
                 transition      = ECAT_INITCMD_S_P;
-				List=(InitTR *)&(ec_slave[nSlave].pSPInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pSPInit);
                 break;
             case EC_STATE_OPERATIONAL:
                 transition      = ECAT_INITCMD_S_O;
-				List=(InitTR *)&(ec_slave[nSlave].pSOInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pSOInit);
                 break;
             }
             break;
         case EC_STATE_OPERATIONAL:
-            switch ( ec_slave[nSlave].reqState )
+            switch ( ec_slaveMore[nSlave].reqState )
             {
             case EC_STATE_INIT:
             case EC_STATE_BOOT:
                 transition      = ECAT_INITCMD_O_I;
-				List=(InitTR *)&(ec_slave[nSlave].pOIInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pOIInit);
                 break;
             case EC_STATE_PRE_OP:
                 transition      = ECAT_INITCMD_O_P;
-				List=(InitTR *)&(ec_slave[nSlave].pOPInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pOPInit);
                 break;
             case EC_STATE_SAFE_OP:
                 transition      = ECAT_INITCMD_O_S;
-				List=(InitTR *)&(ec_slave[nSlave].pOSInit);
+				List=(InitTR *)&(ec_slaveMore[nSlave].pOSInit);
                 break;
             }
             break;
@@ -184,9 +185,9 @@ boolean    SlaveStateMachine(uint16 nSlave, EcMaster *pMaster)
     }
     
     
-    ec_slave[nSlave].oldCurrState = ec_slave[nSlave].currState;
+    ec_slaveMore[nSlave].oldCurrState = ec_slaveMore[nSlave].currState;
     
-    return ec_slave[nSlave].reqState == ec_slave[nSlave].currState;
+    return ec_slaveMore[nSlave].reqState == ec_slaveMore[nSlave].currState;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -194,7 +195,7 @@ boolean    SlaveStateMachine(uint16 nSlave, EcMaster *pMaster)
 void    SlaveRequestState(uint16 state, uint16 nSlave)
 {
     
-    ec_slave[nSlave].reqState = state;
+    ec_slaveMore[nSlave].reqState = state;
 }
 ////////////////////////////////////////////////////////////////////////////////
 ///\brief Processes init commands that should be sent in this transition.

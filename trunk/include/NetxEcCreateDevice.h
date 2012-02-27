@@ -63,7 +63,7 @@
 
 
 #define INITCMD_INACTIVE    0xffff 
-//ADD 24-02-2012	
+
 #define PHYSICS_Y 0x59
 #define PHYSICS_K 0x4B
 #define PHYSICS_  0x00
@@ -71,7 +71,7 @@
 #define PHYSICS_MII  0x03
 #define PHYSICS_EBUS  0x02
 #define PHYSICS_NOT_IMPL  0x00
-//end add 24-02-2012
+
 /////////////////////////////////////////////////////////////////////////7
 typedef enum EEC_MASTER_STATE
 {
@@ -282,7 +282,7 @@ typedef struct TEcMailboxCmdDesc
 	uint8                    Ccs;
     uint16                   Index;
     uint16                   SubIndex; // (excl. \0)
-    unsigned char *          Data; 
+    unsigned char           *Data; 
     uint32					 DataLen;
     
 } EcMailboxCmdDesc;
@@ -385,6 +385,67 @@ typedef struct PACKED TagInitCmdList
 	struct TagInitTR *next; 
    }InitTR;
 
+/***************************************
+* new fields for ec_slave
+****************************************/
+
+typedef struct PACKED Tmore
+{
+uint16              autoIncAddr;
+	#ifndef SLAVE_WITHOUT_SN
+     uint32          serialNo;
+#endif	 
+	
+	struct
+    {
+        uint16                      reserved0               : 1;
+        uint16                      mboxOutShortSend        : 1;
+        uint16                      cycleMBoxPolling        : 1;
+        uint16                      stateMBoxPolling        : 1;
+        uint16                      referenceClock          : 1;
+        uint16                      forceEndOfBranch        : 1;
+        
+    };
+	
+	uint16              initcmdCnt;
+    uint16              initcmdLen;
+	uint16              mboxCmdCnt;
+    uint16              mboxCmdLen;
+    uint16             slaveAddressMBoxState;
+    uint16             cycleMBoxPollingTime;
+    uint16             bootOutStart;
+    uint16             bootOutLen;
+    uint16             bootInStart;
+    uint16             bootInLen;
+    uint16             prevPhysAddr;
+ //init command
+    uint16                      currState;
+    uint16                      oldCurrState;
+    uint16                      reqState;
+	uint16                      cInitCmds;
+
+	void   *pSlaveInitCmd;  //to be casted to type EcInitCmdDesc defined in NetxEcCreateDevice.h
+	void   *pSlaveMailboxCmd; //to be casted to type  EcMailboxCmdDesc defined in NetxEcCreateDevice.h
+	void   *pIPInit;
+    void   *pPIInit;
+    void   *pPSInit;
+	void   *pSPInit;
+	void   *pSOInit;
+	void   *pSIInit;
+	void   *pOSInit;
+	void   *pOPInit;
+	void   *pOIInit;
+	void   *pIBInit;
+	void   *pBIInit;
+}  ec_slaveMoret;	
+
+
+/*************************************
+* global variables
+**************************************/
+extern EcMaster Master;
+extern EcCycDesc Cyclic;
+extern ec_slaveMoret ec_slaveMore[EC_MAXSLAVE];
 
 /**********************************************
 * functions prototypes
@@ -397,7 +458,7 @@ unsigned int XmlGetBinData( char *bstrHex, unsigned char *s, unsigned int nLengt
 unsigned char *XmlGetBinDataChar( char *bstrHex, unsigned int *lun );
 EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode);
 int CreateMaster(mxml_node_t *pMasterNode, long nSlaves,  EcMaster *pMaster);
-int CreateDevice (EcMaster *pMaster, EcCycDesc *Cyclic);
+int CreateDevice (void);
  void CreateListInitCmd(InitCmdList **plist);
  void InsertInitCmd(InitCmdList **plist, EcInitCmdDesc *cmd);
 void CreateListMboxInitCmd(InitMboxCmdList **plist);
@@ -409,4 +470,4 @@ EcMailboxCmdDesc *ReadAoECmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode);
 EcMailboxCmdDesc *ReadSoECmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode);
 void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDesc);
  void InsertInitTR(InitTR **ppInitTRList, EcInitCmdDesc **ppInitCmd, uint8 before);
-
+void reset(void);
