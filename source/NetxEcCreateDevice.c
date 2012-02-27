@@ -457,6 +457,7 @@ Read the <CoE>,<InitCmds> nodes in the ENI XML file and store the information in
 @return pDesc = command descriptor that stores the information about the read command
 
 History:
+        ver. 1.3, 27-02-2012, EcMailboxCmdDesc has been modified
         ver. 1.2, 08-02-2012, EcMailboxCmdDesc has been changed
 		ver  1.1, 24-01-2012 Initial version
 
@@ -465,13 +466,15 @@ History:
 EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
-    unsigned char * pData = NULL;
+    //unsigned char * pData = NULL;
     mxml_node_t *element, *spNode;
     char *strComment = NULL;
     char *strCommentTemp = NULL;
     
-        uint32 nData = 0;
-		
+       uint32 nData = 0;
+		pDesc = (EcMailboxCmdDesc *) malloc(sizeof(EcMailboxCmdDesc));
+        memset(pDesc, 0, sizeof(EcMailboxCmdDesc));
+
  	spNode=mxmlFindElement(pCmdNode, TopNode, "Comment", NULL, NULL, MXML_DESCEND_FIRST);
         if( spNode != NULL ) {
             strCommentTemp = (char *)spNode->child->value.opaque;
@@ -489,16 +492,14 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
         if( spNode != NULL )
         {
             //Read data that should be sent
-            pData = XmlGetBinDataChar((char *) spNode->child->value.opaque, &nData);
+            pDesc->Data = (unsigned short)(unsigned short)(long)text2long(spNode->child->value.opaque);
         }
 
-        pDesc = (EcMailboxCmdDesc *) malloc(sizeof(EcMailboxCmdDesc));
-        memset(pDesc, 0, sizeof(EcMailboxCmdDesc));
+        
         pDesc->protocol         = ETHERCAT_MBOX_TYPE_CANOPEN;
-        pDesc->DataLen          = nData;
+        //pDesc->DataLen          = nData;
         strcpy(pDesc->cmt,strComment);	
-        if (pData)
-            memcpy(pDesc->Data, pData, nData);
+        
 
         //Read transitions during which this command should be sent
         mxml_node_t *spTransitions = mxmlFindElement(pCmdNode, TopNode, "Transition", NULL, NULL, MXML_DESCEND_FIRST);

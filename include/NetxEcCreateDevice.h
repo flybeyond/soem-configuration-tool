@@ -272,7 +272,7 @@ already exist in SOEM (I've just copied at all from eCos)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-//changed 08Feb2012
+//changed 27Feb2012
 typedef struct TEcMailboxCmdDesc
 {
     uint16                   transition;
@@ -282,7 +282,7 @@ typedef struct TEcMailboxCmdDesc
 	uint8                    Ccs;
     uint16                   Index;
     uint16                   SubIndex; // (excl. \0)
-    unsigned char           *Data; 
+    uint16                    Data; 
     uint32					 DataLen;
     
 } EcMailboxCmdDesc;
