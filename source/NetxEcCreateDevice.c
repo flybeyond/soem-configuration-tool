@@ -466,7 +466,7 @@ History:
 EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
 {
     EcMailboxCmdDesc *pDesc = NULL;
-    //unsigned char * pData = NULL;
+    unsigned char * pData = NULL;
     mxml_node_t *element, *spNode;
     char *strComment = NULL;
     char *strCommentTemp = NULL;
@@ -818,66 +818,76 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
    uint8 before=0;
 
      InitCmdList *loop=pMasterCmdList;
-   while (loop != NULL)
+      while (loop != NULL)
    { if( (loop->InitCmd.transition & ECAT_INITCMD_I_P))
          { if ( (loop->InitCmd.transition&&ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_IP, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_IP, &(loop->InitCmd), before);
+			pMaster->nIPInitCmdCount++;			  
 		  }
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_P_I))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_PI, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_PI, &(loop->InitCmd), before);
+			pMaster->nPIInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_B_I))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_BI, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_BI, &(loop->InitCmd), before);
+			pMaster->nBIInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_I))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_SI, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_SI, &(loop->InitCmd), before);
+			pMaster->nSIInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_I))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_OI, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_OI, &(loop->InitCmd), before);
+			pMaster->nOIInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_P_S))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_PS, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_PS, &(loop->InitCmd), before);
+			pMaster->nPSInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_P))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_SP, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_SP, &(loop->InitCmd), before);
+			pMaster->nSPInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_O))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_SO, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_SO, &(loop->InitCmd), before);
+			pMaster->nSOInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_P))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_OP, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_OP, &(loop->InitCmd), before);
+			pMaster->nOPInitCmdCount++;			  
 		  }
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_S))
          { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
 		          before=1;
 			else before=0;
-		    InsertInitTR(&pMaster_OS, &(loop->InitCmd), before);			  
+		    InsertInitTR(&pMaster_OS, &(loop->InitCmd), before);
+			pMaster->nOSInitCmdCount++;			  
 		  }
 	loop=loop->nextCmd;
     }
@@ -1178,37 +1188,48 @@ mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML
      InitCmdList *loop=SlaveInitCmd;
    while (loop != NULL)
    { if( (loop->InitCmd.transition & ECAT_INITCMD_I_P))
-          InsertInitTR(&pSlave_IP, &(loop->InitCmd), 0);			  
+          {InsertInitTR(&pSlave_IP, &(loop->InitCmd), 0);
+		  ec_slaveMore[slave].nIPInitCount++;}			  
 		  
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_P_I))
-            InsertInitTR(&pSlave_PI, &(loop->InitCmd), 0);			  
-		  
+            {InsertInitTR(&pSlave_PI, &(loop->InitCmd), 0);			  
+		    ec_slaveMore[slave].nPIInitCount++;}
+
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_B_I))
-             InsertInitTR(&pSlave_BI, &(loop->InitCmd), 0);			  
-		  
+             {InsertInitTR(&pSlave_BI, &(loop->InitCmd), 0);			  
+		     ec_slaveMore[slave].nBIInitCount++;}
+
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_I))
-            InsertInitTR(&pSlave_SI, &(loop->InitCmd), 0);			  
-		
+            {InsertInitTR(&pSlave_SI, &(loop->InitCmd), 0);			  
+		     ec_slaveMore[slave].nSIInitCount++;}
+
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_I))
-           InsertInitTR(&pSlave_OI, &(loop->InitCmd), 0);
-		   
+           {InsertInitTR(&pSlave_OI, &(loop->InitCmd), 0);
+		   ec_slaveMore[slave].nOIInitCount++;}
+
 	if( (loop->InitCmd.transition & ECAT_INITCMD_P_S))
-          InsertInitTR(&pSlave_PS, &(loop->InitCmd), 0);			  
-		  
+          {InsertInitTR(&pSlave_PS, &(loop->InitCmd), 0);			  
+		  ec_slaveMore[slave].nPSInitCount++;}
+
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_S_P))
-            InsertInitTR(&pSlave_SP, &(loop->InitCmd), 0);			  
-		  
+            {InsertInitTR(&pSlave_SP, &(loop->InitCmd), 0);			  
+		     ec_slaveMore[slave].nSPInitCount++;}
+
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_S_O))
-             InsertInitTR(&pSlave_SO, &(loop->InitCmd), 0);			  
-		  
+             {InsertInitTR(&pSlave_SO, &(loop->InitCmd), 0);			  
+		     ec_slaveMore[slave].nSOInitCount++;}
+
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_S))
-            InsertInitTR(&pSlave_OS, &(loop->InitCmd), 0);			  
-		
+            {InsertInitTR(&pSlave_OS, &(loop->InitCmd), 0);			  
+		     ec_slaveMore[slave].nOSInitCount++;}
+
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_P))
-           InsertInitTR(&pSlave_OP, &(loop->InitCmd), 0);
+           {InsertInitTR(&pSlave_OP, &(loop->InitCmd), 0);
+           ec_slaveMore[slave].nOPInitCount++;}
 
     if( (loop->InitCmd.transition & ECAT_INITCMD_I_B))
-           InsertInitTR(&pSlave_IB, &(loop->InitCmd), 0);	
+           {InsertInitTR(&pSlave_IB, &(loop->InitCmd), 0);	
+		   ec_slaveMore[slave].nIBInitCount++;}	
 		   
 	loop=loop->nextCmd;
     }

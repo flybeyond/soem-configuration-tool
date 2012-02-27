@@ -139,20 +139,27 @@ typedef struct TEcMasterDesc
     uint32                      dcSyncWindow;
     uint32                       reserved2;
 	void                        *pMasterInitCmd; //InitCmds list
-	
-	//!!!!
 	void                         *pIPInitCmd; //adresses of InitCmd with transition I_P
+	uint16						  nIPInitCmdCount; //number of InitCmd for transition I_P
 	void                         *pPIInitCmd; //adresses of InitCmd with transition P_I
+ 	uint16						  nPIInitCmdCount; //number of InitCmd for transition P_I	
 	void                         *pBIInitCmd; //adresses of InitCmd with transition B_I
+ 	uint16						  nBIInitCmdCount; //number of InitCmd for transition B_I	
 	void                         *pSIInitCmd; //adresses of InitCmd with transition S_I
+  	uint16						  nSIInitCmdCount; //number of InitCmd for transition S_I	
 	void                         *pOIInitCmd; //adresses of InitCmd with transition O_I
+  	uint16						  nOIInitCmdCount; //number of InitCmd for transition O_I	
 	void                         *pPSInitCmd; //adresses of InitCmd with transition P_S
+  	uint16						  nPSInitCmdCount; //number of InitCmd for transition P_S	
 	void                         *pSPInitCmd; //adresses of InitCmd with transition S_P
+  	uint16						  nSPInitCmdCount; //number of InitCmd for transition S_P	
 	void                         *pSOInitCmd; //adresses of InitCmd with transition S_O
+  	uint16						  nSOInitCmdCount; //number of InitCmd for transition S_O	
 	void                         *pOPInitCmd; //adresses of InitCmd with transition O_P
+  	uint16						  nOPInitCmdCount; //number of InitCmd for transition O_P	
 	void                         *pOSInitCmd; //adresses of InitCmd with transition O_S
+  	uint16						  nOSInitCmdCount; //number of InitCmd for transition O_S	
 	uint32                        configCycTime;
-
  // master state
     EC_MASTER_STATE            m_currState;
     uint16                     m_reqState;
@@ -427,16 +434,27 @@ uint16              autoIncAddr;
 	void   *pSlaveInitCmd;  //to be casted to type EcInitCmdDesc defined in NetxEcCreateDevice.h
 	void   *pSlaveMailboxCmd; //to be casted to type  EcMailboxCmdDesc defined in NetxEcCreateDevice.h
 	void   *pIPInit;
+	uint16  nIPInitCount;
     void   *pPIInit;
+    uint16  nPIInitCount;	
     void   *pPSInit;
+    uint16  nPSInitCount;	
 	void   *pSPInit;
+    uint16  nSPInitCount;	
 	void   *pSOInit;
+    uint16  nSOInitCount;	
 	void   *pSIInit;
+    uint16  nSIInitCount;	
 	void   *pOSInit;
+    uint16  nOSInitCount;	
 	void   *pOPInit;
+    uint16  nOPInitCount;	
 	void   *pOIInit;
+    uint16  nOIInitCount;	
 	void   *pIBInit;
+    uint16  nIBInitCount;	
 	void   *pBIInit;
+   uint16  nBIInitCount;
 }  ec_slaveMoret;	
 
 
