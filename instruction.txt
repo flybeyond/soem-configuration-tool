@@ -7,4 +7,7 @@ to create your own buffer string from an xml file UNDER WINDOWS	you have to:
  -go to the directory that include makefsdata and "fs" folder
  -digit: perl makefsdata.pl
  -now there's a file called "fsdata.c" that contains your buffer
- - delete the lines indicate in the file "fsdata.c" as "to delete"
+ -open "fsdata.c" with a text editor and:
+    1)rename the structure as "data_xmlprova_xml"
+    2)delete the first line (the one between /*File:...  and /*here starts the data*/)
+    3)delete the last lines(const struct... , #define FS_ROOT file_beckhoff_xml and #define FS_NUMFILES 1) 
