@@ -25,7 +25,7 @@
 #include "ethercatmain.h"
 
 #include <stddef.h>
-
+#include <stdlib.h>
 
  
 #define  HRESULT uint32
@@ -161,9 +161,9 @@ typedef struct TEcMasterDesc
   	uint16						  nOSInitCmdCount; //number of InitCmd for transition O_S	
 	uint32                        configCycTime;
  // master state
-    EC_MASTER_STATE            m_currState;
-    uint16                     m_reqState;
-    uint16                     m_reqStateUser;
+    int            m_currState;
+    int                     m_reqState;
+    int                     m_reqStateUser;
 	
 	uint16 m_cInitCmds;//to be initialized as  INITCMD_INACTIVE;
 	

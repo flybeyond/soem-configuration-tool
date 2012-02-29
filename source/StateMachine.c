@@ -89,7 +89,7 @@ boolean TransitionIP(Ecmaster *pMaster)
   MasterList=pMaster->pIPInitCmd
     while(MasterList&&nNumCmd)
 	{
-	  EcatCmdReq(MasterList->InitCmd);
+	  EcatCmdReq(MasterList->InitCmd);//TO BE IMPLEMENTED
 	  nNumCmd--;
 	  MasterList=MasterList->nextCmd;
 	}  
@@ -100,7 +100,7 @@ boolean TransitionIP(Ecmaster *pMaster)
 	 SlaveList=ec_slaveMore[slave].pIPInit;
 	  while(SlaveList)
 	    {
-		 EcatCmdReq(SlaveList->InitCmd);
+		 EcatCmdReq(SlaveList->InitCmd);//TO BE IMPLEMENTED
 	    SlaveList=SlaveList->nextCmd;
 		 }
 	/*update the ec_slave fields (second part; the first part has been done by XML parsing) this part is taken from ethercatconfig.c*/
@@ -203,7 +203,142 @@ boolean TransitionIP(Ecmaster *pMaster)
   
  }
 
-
+/////////////////////////////////////////////////////////////////////////////
+boolean TransitionPS(Ecmaster *pMaster)
+{
+ uint16 slave, slavec, enable, configadr, nNumCmd;
+ InitCmdList *SlaveList, *MasterList;
+ InitMboxCmdList* SlaveMbxList;
+ mxml_node_t  *element, *pNodeSM;
+ char *szName;
+ /*check if all slave are in PRE_OP*/
+  if(ec_statecheck(0, EC_STATE_PRE_OP, EC_TIMEOUTSTATE)!=EC_STATE_PRE_OP)
+    return FALSE;
+  
+ /*send before_slave cmds*/
+  nNumCmd=pMaster->nPSInitCmdCount;
+  MasterList=pMaster->pIPInitCmd
+    while(MasterList&&nNumCmd)
+	{
+	  EcatCmdReq(MasterList->InitCmd);
+	  nNumCmd--;
+	  MasterList=MasterList->nextCmd;
+	}  
+  /*config slaves*/ 
+   FILE *fp;
+      mxml_node_t *tree;
+     
+     //fp = fopen(strXMLConfig, "r");
+	
+	 //create tree
+      //	tree = mxmlLoadFile(NULL, fp,MXML_OPAQUE_CALLBACK); 
+	
+    
+	//tree=CreateXML();
+	tree=mxmlLoadString(NULL, data_xmlprova_xml, MXML_OPAQUE_CALLBACK); 
+    //fclose(fp);
+	
+	mxml_node_t *Root = mxmlFindElement(tree, tree,"Config" ,NULL, NULL, MXML_DESCEND);
+    if( Root != NULL )
+	   mxml_node_t  *pSlaves = mxmlFindElement(Root, tree,"Slave" ,NULL, NULL, MXML_DESCEND);//point to the first <Slave> node
+	   
+  for (slave=1; slave<=ec_slavecount; slave++)
+    {
+	 /*slave's init_cmds*/
+	 SlaveList=ec_slaveMore[slave].pPSInit;
+	  while(SlaveList)
+	    {
+		 EcatCmdReq(SlaveList->InitCmd); //TO BE IMPLEMENTED
+	    SlaveList=SlaveList->nextCmd;
+		 }
+	 /*Mailbox Init commdands*/
+	  SlaveMbxList=ec_slaveMore[slave].pSlaveMailboxCmd;
+	  while(SlaveMbxList)
+	    {
+		 EcatMbxReq(SlaveMbxList->MbInitCmd); //TO BE IMPLEMENTED
+	    SlaveMbxList=SlaveMbxList->nextCmd;
+		}
+	 /*Set Sync Managers*/
+	 mxml_node_t  *pNodeProcData = mxmlFindElement(pSlaves, Root,"ProcessData" ,NULL, NULL, MXML_DESCEND);
+	  if (pNodeProcData)
+	   {
+	    mxml_node_t  *pNodeSend = mxmlFindElement(pNodeProcData, pSlaves,"Send" ,NULL, NULL, MXML_DESCEND);
+		 if (pNodeSend)
+		    element=mxmlFindElement(pNodeSend, pNodeProcData, "BitLength" ,NULL, NULL, MXML_DESCEND);
+			ec_slave[slave].Obits=(uint16)(long) text2long(element->child->value.opaque);
+			ec_slave[slave].FMMU0func = 1;
+			
+		mxml_node_t  *pNodeRecv = mxmlFindElement(pNodeProcData, pSlaves,"Recv" ,NULL, NULL, MXML_DESCEND);
+		 if (pNodeRecv)
+		    element=mxmlFindElement(pNodeRecv, pNodeProcData, "BitLength" ,NULL, NULL, MXML_DESCEND);
+			ec_slave[slave].Ibits=(uint16)(long) text2long(element->child->value.opaque);
+			ec_slave[slave].FMMU1func = 2;
+			
+	     if (ec_slave[slave].Ibits > 7)
+				ec_slave[slave].Ibytes = (ec_slave[slave].Ibits + 7) / 8;
+		 if (ec_slave[slave].Obits > 7)
+				ec_slave[slave].Obytes = (ec_slave[slave].Obits + 7) / 8;	
+		
+		/*set SM0 if present*/
+		pNodeSM = mxmlFindElement(pNodeProcData, pSlaves,"Sm0" ,NULL, NULL, MXML_DESCEND);
+		if (pNodeSM)
+		{ /** SM type 0=unused 1=MbxWr 2=MbxRd 3=Outputs 4=Inputs */
+		   element=mxmlFindElement(pNodeSM, pNodeProcData, "Type" ,NULL, NULL, MXML_DESCEND);
+		   szName =(char*)(element->child->value.opaque);
+		   if (strcmp(szName, "Inputs")==0)
+		        {ec_slave[slave].SMtype[0] = 4;
+				ec_slave[slave].SM[0].SMlength = htoes((ec_slave[slave].Ibits + 7) / 8);
+				ec_slave[slave].FMMU[0].FMMUtype = 2;}
+			if (strcmp(szName, "Outputs")==0)
+		        {ec_slave[slave].SMtype[0] = 3;	
+				element=mxmlFindElement(pNodeSM, pNodeProcData, "DefaultSize" ,NULL, NULL, MXML_DESCEND);
+				ec_slave[slave].SM[0].SMlength = htoes((ec_slave[slave].Obits + 7) / 8);
+				ec_slave[slave].FMMU[0].FMMUtype = 1;}
+			ec_slave[slave].FMMU[0].FMMUactive = 1;	
+			element=mxmlFindElement(pNodeSM, pNodeProcData, "StartAddress" ,NULL, NULL, MXML_DESCEND);
+		            ec_slave[slave].SM[0].StartAddr = htoes((uint16)(long) text2long(element->child->value.opaque));
+			element=mxmlFindElement(pNodeSM, pNodeProcData, "ControlByte" ,NULL, NULL, MXML_DESCEND);
+					ec_slave[slave].SM[0].SMflags = htoel((uint32)(long) text2long(element->child->value.opaque));			
+		}//end SM0
+		
+		/*set SM2 if present*/
+		pNodeSM = mxmlFindElement(pNodeProcData, pSlaves,"Sm2" ,NULL, NULL, MXML_DESCEND);
+		if (pNodeSM)
+		{
+		    ec_slave[slave].SM[2].SMlength = htoes((ec_slave[slave].Obits + 7) / 8);
+			 ec_slave[slave].SMtype[2] = 3;
+			 element=mxmlFindElement(pNodeSM, pNodeProcData, "StartAddress" ,NULL, NULL, MXML_DESCEND);
+			   ec_slave[slave].SM[2].StartAddr = htoes((uint16)(long) text2long(element->child->value.opaque));
+			 element=mxmlFindElement(pNodeSM, pNodeProcData, "ControlByte" ,NULL, NULL, MXML_DESCEND);
+				ec_slave[slave].SM[2].SMflags = htoel((uint32)(long) text2long(element->child->value.opaque));
+			element=mxmlFindElement(pNodeSM, pNodeProcData, "Enable" ,NULL, NULL, MXML_DESCEND);
+		  ec_slave[slave].FMMU[0].FMMUactive ==(uint8)(long) text2long(element->child->value.opaque);
+            ec_slave[slave].FMMU[0].FMMUtype = 1;		  
+			
+		}//end SM2
+		
+		/*set SM3 if present*/
+		pNodeSM = mxmlFindElement(pNodeProcData, pSlaves,"Sm3" ,NULL, NULL, MXML_DESCEND);
+		if (pNodeSM)
+		{
+			 ec_slave[slave].SM[3].SMlength = htoes((ec_slave[slave].Ibits + 7) / 8);
+			 ec_slave[slave].SMtype[3] =4;
+			 element=mxmlFindElement(pNodeSM, pNodeProcData, "StartAddress" ,NULL, NULL, MXML_DESCEND);
+			   ec_slave[slave].SM[3].StartAddr = htoes((uint16)(long) text2long(element->child->value.opaque));
+			 element=mxmlFindElement(pNodeSM, pNodeProcData, "ControlByte" ,NULL, NULL, MXML_DESCEND);
+				ec_slave[slave].SM[3].SMflags = htoel((uint32)(long) text2long(element->child->value.opaque));
+			element=mxmlFindElement(pNodeSM, pNodeProcData, "Enable" ,NULL, NULL, MXML_DESCEND);
+		   ec_slave[slave].FMMU[1].FMMUactive=(uint8)(long) text2long(element->child->value.opaque);
+		   ec_slave[slave].FMMU[1].FMMUtype = 2;
+		} //end SM3
+		
+	    } //end ProcData
+		
+	
+	
+	pSlaves = mxmlFindElement(pSlaves, Root,"Slave" ,NULL, NULL, MXML_DESCEND); //point to the next <Slave> node
+	} //end for
+}
 ///////////////////////////////////////////////////////////////////////////
 boolean MasterStateMachine(Ecmaster *pMaster) //TODO: ADD B_I AND I_B TRANSITIONS
 {

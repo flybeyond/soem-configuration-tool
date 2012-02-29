@@ -941,7 +941,7 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         return -1;
       }
    
-    ec_slave[slave].configadr = (uint16)(long) text2long(spNodePhysAddr->child->value.opaque);
+     ec_slave[slave].configadr=etohs((uint16)(long)strtol(spNodePhysAddr->child->value.opaque,NULL,16));// PhysAddr is an hex value, not a decimal
 
     mxml_node_t *spNodeVendorId = mxmlFindElement(spNodeInfo, pSlave, "VendorId", NULL, NULL, MXML_DESCEND);
 	
@@ -1312,7 +1312,7 @@ if (spMailbox != NULL)
         }
     }
 */
-   ec_slaveMore[slave].pSlaveMailboxCmd=(InitCmdList *)&SlaveMboxInitCmd;
+   ec_slaveMore[slave].pSlaveMailboxCmd=(InitMboxCmdList *)&SlaveMboxInitCmd;
  } 
 
      return 1;
