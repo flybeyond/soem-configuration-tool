@@ -11,3 +11,5 @@ to create your own buffer string from an xml file UNDER WINDOWS	you have to:
     1)rename the structure as "data_xmlprova_xml"
     2)delete the first line (the one between /*File:...  and /*here starts the data*/)
     3)delete the last lines(const struct... , #define FS_ROOT file_beckhoff_xml and #define FS_NUMFILES 1) 
+
+(compare your file that has been generated with xmlprova_example to see the differences)
