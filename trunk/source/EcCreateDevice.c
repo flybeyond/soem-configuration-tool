@@ -1,34 +1,110 @@
 /*******************************************
  * SOEM Configuration tool
  *
- * File    : NetxEcCreateDevice.c
+ * File    : EcCreateDevice.c
  * Version : 1.3
- * Date    : 27-02-2012
+ * Date    : 19-04-2012
  * History :
- *          1.3, 27-02-2012, Initialization of resources modified
+ *          1.3, 19-04-2012, complete version for test
  *          1.2, 08-02-2012, temporarily disabled SoE and AoE; changed parsing <CoE>,<InitCmds> parsing
  *          1.1, 24-01-2012, Improved readability
  *          1.0, 21-12-2011, Initial version 
 ****************************************************************/
 
-#include "NetxEcCreateDevice.h"
+#include "EcCreateDevice.h"
 #include "xmlprova.c"
 #include "ethercatmain.h"
 #include "ethercatbase.h"
-
-EcMaster Master;
+//#include "Eth_Register_Include.h"
+//EcMaster Master;
 EcCycDesc Cyclic;
-ec_slaveMoret ec_slaveMore[EC_MAXSLAVE];
 
+ //////////////////////////////////////////////////////
+ void InsertVariable(ec_VariableList **plist, ec_variable *VarDesc)
+ {ec_VariableList *temp, *tail;
+
+  temp=(ec_VariableList *)malloc(sizeof(ec_VariableList));
+  unsigned char *pByte=(unsigned char *)&(temp->variable);
+  memcpy(pByte, VarDesc, sizeof(ec_variable));
+  
+  temp->NextVar=NULL;
+  if (*plist == NULL)
+   { *plist=temp;
+     }  
+   else
+    { tail=*plist;
+	  while (tail->NextVar != NULL)
+	    {tail=tail->NextVar;}
+		tail->NextVar=temp;
+	}
+  }
+void EraseVarList(ec_VariableList **plist)
+{ec_VariableList *temp, *tail;
+  ec_variable *SlaveDesc; 
+  
+ if (*plist != NULL)
+ {
+  temp=*plist;
+  tail=temp->NextVar;
+    do
+	{
+	 SlaveDesc=&(temp->variable);
+	 free(SlaveDesc);
+	 temp=tail;
+	 tail=tail->NextVar;
+	 }
+	 while (tail != NULL);
+  }	  
+ }	
+
+ 
+
+ec_VariableList *findVar(uint16 nVar,ec_VariableList **plist)
+ {   ec_VariableList *temp;
+	uint16 i=0;
+	temp=*plist;
+    while (i<nVar)
+	{temp=temp->NextVar;
+	 i++;}
+	 return temp;
+}
+
+void myreverse(char s[])
+ {
+     int i, j;
+     char c;
+ 
+     for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+         c = s[i];
+         s[i] = s[j];
+         s[j] = c;
+     }
+ }
+
+void Myitoa(int n, char s[])
+ {
+     int i, sign;
+ 
+     if ((sign = n) < 0)  /* record sign */
+         n = -n;          /* make n positive */
+     i = 0;
+     do {       /* generate digits in reverse order */
+         s[i++] = n % 10 + '0';   /* get next digit */
+     } while ((n /= 10) > 0);     /* delete it */
+     if (sign < 0)
+         s[i++] = '-';
+     s[i] = '\0';
+     myreverse(s);
+ }
 ////////////////////////////////////////////////
-//add 27-02-2012
 void reset(void)
 {
  
-   memset(&Master,0, sizeof(EcMaster));
+   
    memset(&Cyclic,0, sizeof(EcCycDesc)); 
-   memset(&ec_slaveMore, 0x00, sizeof(ec_slaveMore));
-   memset(&ec_slave, 0, sizeof(ec_slave)); 
+   EraseSlaveList(&SlaveList); 
+   EraseVarList(&VariableOutList);
+   EraseVarList(&VariableInList);
     
  }
 
@@ -61,14 +137,14 @@ unsigned int XmlGetBinDataSize( char * bstrHex )
 }
 
 /////////////////////////////////////////////////////////////////////////////
-unsigned int XmlGetBinData( char * bstrHex, unsigned char * s, unsigned int nLength )
+unsigned char * XmlGetBinData( char * bstrHex, unsigned int *len )
 {
-    unsigned int i, j = XmlGetBinDataSize( bstrHex );
-    if ( nLength < j )
-        return 0;
-    for ( i = 0; i < j; i++ )
+    unsigned int i;
+    *len = XmlGetBinDataSize( bstrHex );
+    unsigned char * s = (unsigned char *) malloc(len);
+    for ( i = 0; i < len; i++ )
     {
-        wchar_t tmp = bstrHex[2*i+1]; 
+        char tmp = bstrHex[2*i+1];
         if ( tmp >= '0' && tmp <= '9' )
             s[i]  = (unsigned char)(tmp - '0');
         else if ( tmp >= 'a' && tmp <= 'f' )
@@ -76,7 +152,7 @@ unsigned int XmlGetBinData( char * bstrHex, unsigned char * s, unsigned int nLen
         else if ( tmp >= 'A' && tmp <= 'F' )
             s[i]  = 10 + (unsigned char)(tmp - 'A');
         else
-            return 0;
+            break;
         tmp = bstrHex[2*i];
         if ( tmp >= '0' && tmp <= '9' )
             s[i]  |= (unsigned char)(tmp - '0') << 4;
@@ -85,9 +161,17 @@ unsigned int XmlGetBinData( char * bstrHex, unsigned char * s, unsigned int nLen
         else if ( tmp >= 'A' && tmp <= 'F' )
             s[i]  |= (10 + (unsigned char)(tmp - 'A')) << 4;
         else
-            return 0;
+            break;
     }
-    return j;
+    if ( i != len )
+    {
+printf("XmlGetBinData : Errore bstrHex %s\n", bstrHex);
+        free(s);
+        len = 0;
+        return NULL;
+    }
+    else
+        return s;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -128,15 +212,13 @@ printf("XmlGetBinData : Errore bstrHex %s\n", bstrHex);
     else
         return s;
 }
-/////////////////////////////////////////////////////////////
+
 
 /************************************************************
 \brief Operations on list
 ***************************************************************/
 void CreateListInitCmd(InitCmdList **plist)
- { *plist=NULL;
-   
-   }
+ { *plist=NULL;}
  
 void CreateListMboxInitCmd(InitMboxCmdList **plist)
  { *plist=NULL;} 
@@ -166,7 +248,7 @@ void InsertInitCmd(InitCmdList **plist, EcInitCmdDesc *cmd)
   temp=(InitMboxCmdList *)malloc(sizeof(InitMboxCmdList));
   
   unsigned char *pByte=(unsigned char *)&(temp->MbInitCmd);
-  memcpy(pByte, cmd, sizeof(EcInitCmdDesc));
+  memcpy(pByte, cmd, sizeof(EcMailboxCmdDesc));
   temp->nextCmd=NULL;
   if (*plist == NULL)
    { *plist=temp;}  
@@ -195,22 +277,6 @@ void InsertInitCmd(InitCmdList **plist, EcInitCmdDesc *cmd)
 	}
   }
   
-   
-  void InsertInitTR(InitTR **ppInitTRList, EcInitCmdDesc **ppInitCmd, uint8 before)
-  {InitTR *temp, *tail;
-    temp=(InitTR *)malloc(sizeof(InitTR));
-	temp->InitCmd=ppInitCmd;
-	temp->before=before;
-	temp->next=NULL;
-  if (*ppInitTRList == NULL)
-   { *ppInitTRList=temp;}  
-   else
-    { tail=*ppInitTRList;
-	  while (tail->next != NULL)
-	    {tail=tail->next;}
-		tail->next=temp;
-	}
-   }
  
 /////////////////////////////////////////////////////////////////////////////
 
@@ -254,6 +320,8 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
         if( spNode != NULL )
         {
             pData = XmlGetBinDataChar((char *)spNode->child->value.opaque, &nData);
+            
+ 			
         }
         else
         {
@@ -315,6 +383,8 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
         {
             if( strcmp(element->child->value.opaque, "IP") == 0 )
                 pDesc->transition |= ECAT_INITCMD_I_P;
+ 			 else if( strcmp(element->child->value.opaque, "II") == 0 )
+                pDesc->transition |= ECAT_INITCMD_I_P;	
             else if( strcmp(element->child->value.opaque, "PS") == 0 )
                 pDesc->transition |= ECAT_INITCMD_P_S;
             else if( strcmp(element->child->value.opaque, "PI") == 0 )
@@ -403,6 +473,8 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 		   for (i=0;i<nData;i++)
 			   {pDesc->data[i]=(unsigned char *)*(pData+i);}
 		 }
+		 
+ 	
         
         if ( pVal && pMask )
         {
@@ -457,21 +529,21 @@ Read the <CoE>,<InitCmds> nodes in the ENI XML file and store the information in
 @return pDesc = command descriptor that stores the information about the read command
 
 History:
-        ver. 1.3, 27-02-2012, EcMailboxCmdDesc has been modified
+       ver. 1.3, 27-02-2012, EcMailboxCmdDesc has been modified
         ver. 1.2, 08-02-2012, EcMailboxCmdDesc has been changed
 		ver  1.1, 24-01-2012 Initial version
 
 ***************************************************************/
 
-EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
+EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode, uint8 CA)
 {
     EcMailboxCmdDesc *pDesc = NULL;
     unsigned char * pData = NULL;
     mxml_node_t *element, *spNode;
     char *strComment = NULL;
     char *strCommentTemp = NULL;
-    
-       uint32 nData = 0;
+    int i;
+        //int nData = 0;
 		pDesc = (EcMailboxCmdDesc *) malloc(sizeof(EcMailboxCmdDesc));
         memset(pDesc, 0, sizeof(EcMailboxCmdDesc));
 
@@ -486,20 +558,27 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
             strComment = (char *) malloc(strlen(strCommentTemp)+1);
             strcpy(strComment, strCommentTemp);
         }
-			
+		strcpy(pDesc->cmt,strComment);
+		pDesc->protocol         = ETHERCAT_MBOX_TYPE_CANOPEN;	
         spNode =mxmlFindElement(pCmdNode, TopNode, "Data", NULL, NULL, MXML_DESCEND_FIRST);
          
         if( spNode != NULL )
         {
             //Read data that should be sent
-            pDesc->Data = (unsigned short)(unsigned short)(long)text2long(spNode->child->value.opaque);
+            //pDesc->Data = (unsigned short)(unsigned short)(long)text2long(spNode->child->value.opaque);
+ 		    pData = XmlGetBinDataChar((char *)spNode->child->value.opaque, &(pDesc->DataLen));	
         }
 
         
-        pDesc->protocol         = ETHERCAT_MBOX_TYPE_CANOPEN;
-        //pDesc->DataLen          = nData;
-        strcpy(pDesc->cmt,strComment);	
         
+        //pDesc->DataLen          = nData;
+        	
+        if ( pData )
+            
+		 { 
+		   for (i=0;i<pDesc->DataLen ;i++)
+			   {pDesc->Data[i]=(unsigned char *)*(pData+i);}
+		 }
 
         //Read transitions during which this command should be sent
         mxml_node_t *spTransitions = mxmlFindElement(pCmdNode, TopNode, "Transition", NULL, NULL, MXML_DESCEND_FIRST);
@@ -538,9 +617,8 @@ EcMailboxCmdDesc *ReadCANopenCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode)
         //command type 1 = SDO initiate upload ; 2 = SDO initiate download
         if( (spNode = mxmlFindElement(pCmdNode, TopNode, "Ccs", NULL, NULL, MXML_DESCEND_FIRST)) )
             pDesc->Ccs = (unsigned char) text2uchar(spNode->child->value.opaque);
-        //Complete Access TODO: skip for now
-
-
+        //Complete Access 
+        pDesc->CA=CA;    
     if( pData )
         free(pData);
  	if ( strComment )
@@ -740,19 +818,19 @@ EcMailboxCmdDesc *ReadAoECmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 Read the <Master> node in the ENI XML file and store the information in a global variable
 @param[IN] pMasterNode = pointer to the <Master>  node in the ENI XML file
 @param[IN] nSlaves = total number of slaves
-@param[out] pMaster = pointer to the GLOBAL variable that stores information about master
+information are stored in ec_slave[0] and ec_slaveMore[0]
 
 @return 1 if successful
 ***************************************************************/
-int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
+
+int CreateMaster(mxml_node_t *pMasterNode, long nSlaves)
 {
     
     char * szName;
     mxml_node_t *node;
 	
-  
-    pMaster->maxSlaves   = max(1, (unsigned short)nSlaves);  // at least one!
-    node=mxmlFindElement(pMasterNode, pMasterNode,"Info" ,NULL, NULL,MXML_DESCEND);
+   
+	node=mxmlFindElement(pMasterNode, pMasterNode,"Info" ,NULL, NULL,MXML_DESCEND);
 	node=mxmlFindElement(node, pMasterNode,"Name" ,NULL, NULL,MXML_DESCEND);
     szName = (char *)node->child->value.opaque;
     if (strncmp(szName, "![CDATA[", 8)==0) {
@@ -760,18 +838,10 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
         if (szName[strlen(szName)-2] == ']')
                     szName[strlen(szName)-2] = '\0';
     }
-    strncpy(pMaster->szName, szName, ECAT_DEVICE_NAMESIZE);
-    pMaster->szName[ECAT_DEVICE_NAMESIZE] = 0;
-
-    mxml_node_t *spStates = mxmlFindElement(pMasterNode, pMasterNode,"MailboxStates" ,NULL, NULL,MXML_DESCEND);
-    if( spStates )
-    {   //master is configured to check the state of the mailbox
-	    node=mxmlFindElement(spStates, pMasterNode,"StartAddr" ,NULL, NULL,MXML_DESCEND);
-        pMaster->logAddressMBoxStates = (unsigned long)(long) text2long(node->child->value.opaque);
-		node=mxmlFindElement(spStates, pMasterNode,"Count" ,NULL, NULL,MXML_DESCEND);
-        pMaster->sizeAddressMBoxStates    = (unsigned short)(long) text2long(node->child->value.opaque);
-    }
-
+   
+    strncpy(ec_slave[0].name, szName, ECAT_DEVICE_NAMESIZE);
+    ec_slave[0].name[ECAT_DEVICE_NAMESIZE] = 0;
+   
    
     //Read master init commands
     mxml_node_t *spCmds= mxmlFindElement(pMasterNode, pMasterNode, "InitCmds", NULL, NULL, MXML_DESCEND);
@@ -781,8 +851,7 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
 	
     { 
 	  CreateListInitCmd(&pMasterCmdList);
-
-	  mxml_node_t *spCmd= mxmlFindElement(spCmds, pMasterNode, "InitCmd", NULL, NULL, MXML_DESCEND);
+      mxml_node_t *spCmd= mxmlFindElement(spCmds, pMasterNode, "InitCmd", NULL, NULL, MXML_DESCEND);
 	  if( spCmd != NULL )
       {
 		mxml_node_t *element;  
@@ -791,117 +860,43 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves, EcMaster *pMaster)
             EcInitCmdDesc *pCmdDesc = ReadECatCmd(element,pMasterNode); 
             if( pCmdDesc )
              {
-                pMaster->initcmdCnt++;
-                pMaster->initcmdLen += SIZEOF_EcInitCmdDesc(pCmdDesc); 
+                ec_slaveMore[0].initcmdCnt++;
+                //ec_slaveMore[0].initcmdLen += SIZEOF_EcInitCmdDesc(pCmdDesc); 
  		    	InsertInitCmd(&pMasterCmdList, pCmdDesc);	
-                
                 free(pCmdDesc);
              }
          }
       }
       
 	
-	//create transition list. NOTE: the InitCmd are stored in pMasterInitCmd, the other list only contain the ADDRESS of the Init Cmd 
   
-   pMaster->pMasterInitCmd=(InitCmdList *)pMasterCmdList;
-   
-   InitTR *pMaster_IP=NULL;
-   InitTR *pMaster_PI=NULL;
-   InitTR *pMaster_BI=NULL;
-   InitTR *pMaster_SI=NULL;
-   InitTR *pMaster_OI=NULL;
-   InitTR *pMaster_PS=NULL;
-   InitTR *pMaster_SP=NULL;
-   InitTR *pMaster_SO=NULL;
-   InitTR *pMaster_OP=NULL;
-   InitTR *pMaster_OS=NULL;
-   uint8 before=0;
-
+   ec_slaveMore[0].pSlaveInitCmd=(InitCmdList *)pMasterCmdList;
+  
      InitCmdList *loop=pMasterCmdList;
-      while (loop != NULL)
+   while (loop != NULL)
    { if( (loop->InitCmd.transition & ECAT_INITCMD_I_P))
-         { if ( (loop->InitCmd.transition&&ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_IP, &(loop->InitCmd), before);
-			pMaster->nIPInitCmdCount++;			  
-		  }
+         { ec_slaveMore[0].nIPInitCount++;}
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_P_I))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_PI, &(loop->InitCmd), before);
-			pMaster->nPIInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nPIInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_B_I))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_BI, &(loop->InitCmd), before);
-			pMaster->nBIInitCmdCount++;			  
-		  }
+         { ec_slaveMore[0].nBIInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_I))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_SI, &(loop->InitCmd), before);
-			pMaster->nSIInitCmdCount++;			  
-		  }
+         { ec_slaveMore[0].nSIInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_I))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_OI, &(loop->InitCmd), before);
-			pMaster->nOIInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nOIInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_P_S))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_PS, &(loop->InitCmd), before);
-			pMaster->nPSInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nPSInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_P))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_SP, &(loop->InitCmd), before);
-			pMaster->nSPInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nSPInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_O))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_SO, &(loop->InitCmd), before);
-			pMaster->nSOInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nSOInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_P))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_OP, &(loop->InitCmd), before);
-			pMaster->nOPInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nOPInitCount++;}
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_S))
-         { if ( (loop->InitCmd.transition & ECAT_INITCMD_BEFORE))
-		          before=1;
-			else before=0;
-		    InsertInitTR(&pMaster_OS, &(loop->InitCmd), before);
-			pMaster->nOSInitCmdCount++;			  
-		  }
+         {ec_slaveMore[0].nOSInitCount++;}
 	loop=loop->nextCmd;
     }
-	pMaster->pIPInitCmd=(InitTR *)pMaster_IP;
-	pMaster->pPIInitCmd=(InitTR *)pMaster_PI;
-	pMaster->pBIInitCmd=(InitTR *)pMaster_BI;
-	pMaster->pSIInitCmd=(InitTR *)pMaster_SI;
-	pMaster->pOIInitCmd=(InitTR *)pMaster_OI;
-	pMaster->pPSInitCmd=(InitTR *)pMaster_PS;
-    pMaster->pSPInitCmd=(InitTR *)pMaster_SP;
-	pMaster->pSOInitCmd=(InitTR *)pMaster_SO;
-	pMaster->pOPInitCmd=(InitTR *)pMaster_OP;
-	pMaster->pOSInitCmd=(InitTR *)pMaster_OS;
-   return 1;
+	return 1;
    }
    else 
    return -1;
@@ -915,7 +910,7 @@ Read the <Slave> node in the ENI XML file and store the information in ec_slave
 @param[IN] autoIncrAddr = auto incremental address of the current slave
 @param[IN] bDcEnabled = TRUE if Distributed clock is enable for the current slave
 @param[IN] slave = index of the current slave
-@param[out] ec_slave[slave] stores the information read from the ENI XML file
+@param[out] ec_slave[slave] and ec_slaveMore[slave] store the information read from the ENI XML file
 
 @return 1 if successful
 History:
@@ -931,7 +926,9 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 	int Sizephy;	
 	
 	
-	ec_slaveMore[slave].autoIncAddr = autoIncrAddr;
+    
+	 ec_slaveMore[slave].autoIncAddr = autoIncrAddr;
+    
     mxml_node_t *spNodeInfo = mxmlFindElement(pSlave, Root, "Info", NULL, NULL, MXML_DESCEND);
 	mxml_node_t *spNodePhysAddr = mxmlFindElement(spNodeInfo, pSlave, "PhysAddr", NULL, NULL, MXML_DESCEND);
 	
@@ -941,8 +938,8 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         return -1;
       }
    
-     ec_slave[slave].configadr=etohs((uint16)(long)strtol(spNodePhysAddr->child->value.opaque,NULL,16));// PhysAddr is an hex value, not a decimal
-
+    ec_slave[slave].configadr=etohs((uint16)(long)text2long(spNodePhysAddr->child->value.opaque)); 
+   
     mxml_node_t *spNodeVendorId = mxmlFindElement(spNodeInfo, pSlave, "VendorId", NULL, NULL, MXML_DESCEND);
 	
     if( spNodeVendorId == NULL )
@@ -950,9 +947,8 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         printf("VendorId not present\n");
         return -1;
     }
-
-    ec_slave[slave].eep_id = (uint32)(long) text2long(spNodeVendorId->child->value.opaque);
-
+    ec_slave[slave].eep_id = (uint32)(long) text2long(spNodeVendorId->child->value.opaque);	
+   
     mxml_node_t *spNodeProductCode = mxmlFindElement(spNodeInfo, pSlave, "ProductCode", NULL, NULL, MXML_DESCEND);
 	
     if( spNodeProductCode == NULL )
@@ -960,9 +956,8 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         printf("ProductCode not present\n");
         return -1;
     }
-
-    ec_slave[slave].eep_man = (uint32)(long) text2long(spNodeProductCode->child->value.opaque);
-
+    ec_slave[slave].eep_man = (uint32)(long) text2long(spNodeProductCode->child->value.opaque);	
+    
     mxml_node_t *spNodeRevisionNo =mxmlFindElement(spNodeInfo, pSlave, "RevisionNo", NULL, NULL, MXML_DESCEND);
 
     if( spNodeRevisionNo == NULL )
@@ -970,9 +965,8 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         printf("RevisionNo not present\n");
         return -1;
     }
-
-    ec_slave[slave].eep_rev = (uint32)(long) text2long(spNodeRevisionNo->child->value.opaque);
-
+    ec_slave[slave].eep_rev = (uint32)(long) text2long(spNodeRevisionNo->child->value.opaque);	
+   
 #ifndef SLAVE_WITHOUT_SN
     mxml_node_t *spNodeSerialNo =mxmlFindElement(spNodeInfo, pSlave, "SerialNo", NULL, NULL, MXML_DESCEND);
  
@@ -981,70 +975,11 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         printf("SerialNo not present\n");
         return -1;
     }
-
-    ec_slaveMore[slave].serialNo = (uint32)(long) text2long(spNodeSerialNo->child->value.opaque);
+    ec_slaveMore[slave].serialNo = (uint32)(long) text2long(spNodeSerialNo->child->value.opaque);	
+    
 #endif
 
-/*	TO MOVE TO TRANSITION IP
 
-    ec_slave[slave].Itype = ECAT_SLAVE_TYPE_SIMPLE; 
-	
-  mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML_DESCEND_FIRST);
-#ifdef DC_SUPPORTED
-    
-    
-      
-	  mxml_node_t *spPrev=mxmlFindElement(spMailbox, pSlave, "PreviousPort", "Selected", "1", MXML_DESCEND);
-      if (spPrev != NULL ) 
-       {
-
-	       spNode=mxmlFindElement(spPrev, spMailbox, "Port", NULL, NULL, MXML_DESCEND);
-            if (spNode != NULL)
-            {
-                
-                const char * sTmp = spNode->child->value.opaque;
-                if ( strcmp(sTmp, "A") == 0 )
-                {
-                    
-                    ec_slave[slave].topology = 0;
-                }
-                else if (strcmp(sTmp, "B") == 0)
-                    ec_slave[slave].topology = 1;
-                else if (strcmp(sTmp, "C") == 0)
-                    ec_slave[slave].topology = 2;
-                else if (strcmp(sTmp, "D") == 0)
-                    ec_slave[slave].topology = 3;
-            }
-            
-                spNode=mxmlFindElement(spPrev, spMailbox, "PhysAddr", NULL, NULL, MXML_DESCEND)
-            if (spNode != NULL) 
-            {
-                ec_slaveMore[slave].prevPhysAddr = (unsigned short)(long) text2long(spNode->child->value.opaque);
-            }
-           
-        }
-
-       
-	
-      mxml_node_t *spDc=mxmlFindElement(pSlave, Root, "DC", NULL, NULL, MXML_DESCEND);
-       if (spDc != NULL)
-       { 
-    	   spNode=mxmlFindElement(spDc, pSlave, "ReferenceClock", NULL, NULL, MXML_DESCEND);
-         if (spNode != NULL)
-          {
-            if( (long)text2long(spNode->child->value.opaque) == 1 )
-            {
-                ec_slaveMore[slave].referenceClock = TRUE;
-                *bDcEnabled = TRUE;
-            }
-            
-		  }
-		}  
-
- #endif
-
- END TO MOVE TO TRANSITION IP
-*/ 
     mxml_node_t *pszName = mxmlFindElement(spNodeInfo, pSlave, "Name", NULL, NULL, MXML_DESCEND_FIRST);
 	    szName =(char*)(pszName->child->value.opaque);
 	
@@ -1053,9 +988,9 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
         if (szName[strlen(szName)-2] == ']')
                     szName[strlen(szName)-2] = '\0';
     }
-    strncpy(ec_slave[slave].name, szName, EC_MAXNAME);
+     strncpy(ec_slave[slave].name, szName, EC_MAXNAME);
     ec_slave[slave].name[EC_MAXNAME] = 0;
-
+    
   mxml_node_t *pszPhysics = mxmlFindElement(spNodeInfo, pSlave, "Physics", NULL, NULL, MXML_DESCEND_FIRST);
   if (pszPhysics)
     {
@@ -1065,11 +1000,14 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 	  for (i=0;i<Sizephy;i++)
 	    { 
 		  if (szName[i]==PHYSICS_Y)
-		      ec_slave[slave].ptype|=(PHYSICS_MII<<2*i);
+		     
+ 			 ec_slave[slave].ptype|=(PHYSICS_MII<<2*i); 
 		  if (szName[i]==PHYSICS_K)
-		      ec_slave[slave].ptype|=(PHYSICS_EBUS<<2*i);
+		      
+ 			 ec_slave[slave].ptype|=(PHYSICS_EBUS<<2*i); 
 		  if (szName[i]==PHYSICS_)
-		      ec_slave[slave].ptype|=(PHYSICS_NOT_IMPL<<2*i);
+		     
+ 			   ec_slave[slave].ptype|=(PHYSICS_NOT_IMPL<<2*i); 
 		  }
 	   }
 	    
@@ -1077,30 +1015,28 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML_DESCEND_FIRST);
     
     if( spMailbox != NULL)
-    {   //Slave supports a mailbox
-        //ec_slave[slave].Itype   = ECAT_SLAVE_TYPE_MAILBOX;
-		
-        mxml_node_t *spSend=mxmlFindElement(spMailbox, pSlave, "Send", NULL, NULL, MXML_DESCEND_FIRST);
+    {   mxml_node_t *spSend=mxmlFindElement(spMailbox, pSlave, "Send", NULL, NULL, MXML_DESCEND_FIRST);
 	
         //Read size and address of the output mailbox
-		
-        if (spSend != NULL)
+		if (spSend != NULL)
         {  spNode=mxmlFindElement(spSend, spMailbox, "Start", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
-                ec_slave[slave].mbx_wo = (unsigned short)(long) text2long(spNode->child->value.opaque);
+                {ec_slave[slave].mbx_wo = (unsigned short)(long) text2long(spNode->child->value.opaque);
+				 ec_slave[slave].SMtype[0] = 1;}	
 				spNode=mxmlFindElement(spSend, spMailbox, "Length", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
                 ec_slave[slave].mbx_l = (unsigned short)(long) text2long(spNode->child->value.opaque);
-        }
+		}
         //Read size and address of the input mailbox
 		spSend=mxmlFindElement(spMailbox, pSlave, "Recv", NULL, NULL, MXML_DESCEND_FIRST); 
         if (spSend != NULL)
         {   spNode=mxmlFindElement(spSend, spMailbox, "Start", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
-                ec_slave[slave].mbx_ro = (unsigned short)(long) text2long(spNode->child->value.opaque);
+                {ec_slave[slave].mbx_ro = (unsigned short)(long) text2long(spNode->child->value.opaque);
+				 ec_slave[slave].SMtype[1] = 2;}	
 				spNode=mxmlFindElement(spSend, spMailbox, "Length", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
-                ec_slave[slave].mbx_rl = (unsigned short)(long) text2long(spNode->child->value.opaque);
+                ec_slave[slave].mbx_rl = (unsigned short)(long) text2long(spNode->child->value.opaque);	
 				spNode=mxmlFindElement(spSend, spMailbox, "PollTime", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
             {
@@ -1112,7 +1048,8 @@ mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML
             {
                 ec_slaveMore[slave].stateMBoxPolling = TRUE;
                 ec_slaveMore[slave].slaveAddressMBoxState = (unsigned short)(long) text2long(spNode->child->value.opaque);
-            }
+            
+			}
         }
         //supports Ethernet over EtherCAT
         spNode = mxmlFindElement(spMailbox, pSlave, "Protocol", NULL, NULL, MXML_DESCEND_FIRST);
@@ -1122,28 +1059,35 @@ mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML
             {
                 if( strcmp(element->child->value.opaque, "AoE") == 0 )
                     {ec_slave[slave].AoEdetails = TRUE;
-					ec_slave[slave].mbx_proto = ECT_MBXPROT_AOE;}
+					ec_slave[slave].mbx_proto = ECT_MBXPROT_AOE; 
+					}
                 else if( strcmp(element->child->value.opaque, "EoE") == 0 )
                     {ec_slave[slave].EoEdetails= TRUE;
-                     ec_slave[slave].mbx_proto = ECT_MBXPROT_EOE;}
-                else if( strcmp(element->child->value.opaque, "CoE") == 0 ){
+                     ec_slave[slave].mbx_proto = ECT_MBXPROT_EOE;
+					 }
+                else if( strcmp(element->child->value.opaque, "CoE") == 0 )
+				{
                     ec_slave[slave].CoEdetails= TRUE; //to be modified in TRANSITION IP
                     ec_slave[slave].SoEdetails= TRUE;
- 					ec_slave[slave].mbx_proto =ECT_MBXPROT_COE;
+ 					ec_slave[slave].mbx_proto =ECT_MBXPROT_COE;	
                 }
                 else if( strcmp(element->child->value.opaque, "FoE") == 0 )
-                    {ec_slave[slave].FoEdetails= TRUE;
-                     ec_slave[slave].mbx_proto = ECT_MBXPROT_FOE;}
+                    {
+					 ec_slave[slave].FoEdetails= TRUE;
+                     ec_slave[slave].mbx_proto = ECT_MBXPROT_FOE; 
+					 }
                 else if( strcmp(element->child->value.opaque, "SoE") == 0 )
-                    {ec_slave[slave].SoEdetails= TRUE;
-                     ec_slave[slave].mbx_proto = ECT_MBXPROT_SOE;}
+                    {
+					 ec_slave[slave].SoEdetails= TRUE;
+                     ec_slave[slave].mbx_proto = ECT_MBXPROT_SOE; 
+					 }
             }
         }
     }
-	
+
    //Init Cmds 
  	mxml_node_t *spCmdsInit = mxmlFindElement(pSlave, Root, "InitCmds", NULL, NULL, MXML_DESCEND_FIRST); 
-	 InitCmdList *SlaveInitCmd;//=(InitCmdList *)malloc(sizeof(InitCmdList));
+	 InitCmdList *SlaveInitCmd;
 	 
 	 
     if (spCmdsInit != NULL)
@@ -1154,126 +1098,124 @@ mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML
 	  {
         for( element = spNode; element != NULL; element = mxmlFindElement(element, spCmdsInit,"InitCmd" ,NULL, NULL,MXML_NO_DESCEND))
         {
-            //EcInitCmdDesc *pCmdDesc = (EcInitCmdDesc *)malloc(sizeof(EcInitCmdDesc));
-			 EcInitCmdDesc *pCmdDesc=ReadECatCmd(element,spCmdsInit);
+            EcInitCmdDesc *pCmdDesc=ReadECatCmd(element,spCmdsInit);
             if( pCmdDesc )
             {
-                ec_slaveMore[slave].initcmdCnt++;
-                ec_slaveMore[slave].initcmdLen += SIZEOF_EcInitCmdDesc(pCmdDesc);
-				                
+               ec_slaveMore[slave].initcmdCnt++;
+                ec_slaveMore[slave].initcmdLen += SIZEOF_EcInitCmdDesc(pCmdDesc);                
 				InsertInitCmd(&SlaveInitCmd, pCmdDesc);
                
                 free(pCmdDesc);
             }
         }
 	  }	
-		ec_slaveMore[slave].pSlaveInitCmd=(InitCmdList *)SlaveInitCmd;
-		//!!!!
-		//create transition lists
-		InitTR *pSlave_IP=NULL;
-        InitTR *pSlave_PI=NULL;
-        InitTR *pSlave_BI=NULL;
-        InitTR *pSlave_SI=NULL;
-        InitTR *pSlave_OI=NULL;
-		InitTR *pSlave_PS=NULL;
-        InitTR *pSlave_SP=NULL;
-        InitTR *pSlave_SO=NULL;
-        InitTR *pSlave_OS=NULL;
-        InitTR *pSlave_OP=NULL;
-        InitTR *pSlave_IB=NULL;
-       
-   
-  
- 
-     InitCmdList *loop=SlaveInitCmd;
+		ec_slaveMore[slave].pSlaveInitCmd=(InitCmdList *)SlaveInitCmd;	
+		InitCmdList *loop=SlaveInitCmd;
    while (loop != NULL)
    { if( (loop->InitCmd.transition & ECAT_INITCMD_I_P))
-          {InsertInitTR(&pSlave_IP, &(loop->InitCmd), 0);
-		  ec_slaveMore[slave].nIPInitCount++;}			  
+          {ec_slaveMore[slave].nIPInitCount++;}			  
 		  
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_P_I))
-            {InsertInitTR(&pSlave_PI, &(loop->InitCmd), 0);			  
-		    ec_slaveMore[slave].nPIInitCount++;}
+            {ec_slaveMore[slave].nPIInitCount++;}
 
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_B_I))
-             {InsertInitTR(&pSlave_BI, &(loop->InitCmd), 0);			  
-		     ec_slaveMore[slave].nBIInitCount++;}
+             {ec_slaveMore[slave].nBIInitCount++;}
 
 	if( (loop->InitCmd.transition & ECAT_INITCMD_S_I))
-            {InsertInitTR(&pSlave_SI, &(loop->InitCmd), 0);			  
-		     ec_slaveMore[slave].nSIInitCount++;}
+            {ec_slaveMore[slave].nSIInitCount++;}
 
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_I))
-           {InsertInitTR(&pSlave_OI, &(loop->InitCmd), 0);
-		   ec_slaveMore[slave].nOIInitCount++;}
+           {ec_slaveMore[slave].nOIInitCount++;}
 
 	if( (loop->InitCmd.transition & ECAT_INITCMD_P_S))
-          {InsertInitTR(&pSlave_PS, &(loop->InitCmd), 0);			  
-		  ec_slaveMore[slave].nPSInitCount++;}
+          {ec_slaveMore[slave].nPSInitCount++;}
 
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_S_P))
-            {InsertInitTR(&pSlave_SP, &(loop->InitCmd), 0);			  
-		     ec_slaveMore[slave].nSPInitCount++;}
+            {ec_slaveMore[slave].nSPInitCount++;}
 
 	  if( (loop->InitCmd.transition & ECAT_INITCMD_S_O))
-             {InsertInitTR(&pSlave_SO, &(loop->InitCmd), 0);			  
-		     ec_slaveMore[slave].nSOInitCount++;}
+             {ec_slaveMore[slave].nSOInitCount++;}
 
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_S))
-            {InsertInitTR(&pSlave_OS, &(loop->InitCmd), 0);			  
-		     ec_slaveMore[slave].nOSInitCount++;}
+            {ec_slaveMore[slave].nOSInitCount++;}
 
 	if( (loop->InitCmd.transition & ECAT_INITCMD_O_P))
-           {InsertInitTR(&pSlave_OP, &(loop->InitCmd), 0);
-           ec_slaveMore[slave].nOPInitCount++;}
+           {ec_slaveMore[slave].nOPInitCount++;}
 
     if( (loop->InitCmd.transition & ECAT_INITCMD_I_B))
-           {InsertInitTR(&pSlave_IB, &(loop->InitCmd), 0);	
-		   ec_slaveMore[slave].nIBInitCount++;}	
-		   
+           {ec_slaveMore[slave].nIBInitCount++;}
 	loop=loop->nextCmd;
     }
-	ec_slaveMore[slave].pIPInit=(InitTR *)pSlave_IP;
-	ec_slaveMore[slave].pPIInit=(InitTR *)pSlave_PI;
-	ec_slaveMore[slave].pBIInit=(InitTR *)pSlave_BI;
-	ec_slaveMore[slave].pSIInit=(InitTR *)pSlave_SI;
-	ec_slaveMore[slave].pOIInit=(InitTR *)pSlave_OI;
-	ec_slaveMore[slave].pPSInit=(InitTR *)pSlave_PS;
-	ec_slaveMore[slave].pSPInit=(InitTR *)pSlave_SP;
-	ec_slaveMore[slave].pSOInit=(InitTR *)pSlave_SO;
-	ec_slaveMore[slave].pOSInit=(InitTR *)pSlave_OS;
-	ec_slaveMore[slave].pOPInit=(InitTR *)pSlave_OP;
-	ec_slaveMore[slave].pIBInit=(InitTR *)pSlave_IB;
-		
-    }
-    
+  
+	}
+
+ ec_slaveMore[slave].cInitCmds =INITCMD_INACTIVE;   
 if (spMailbox != NULL)
  {
+      ec_slaveMore[slave].nIPMbxCount=0;
+      ec_slaveMore[slave].nPSMbxCount=0;
 	   InitMboxCmdList *SlaveMboxInitCmd;
-	   CreateListMboxInitCmd(&SlaveMboxInitCmd);
- 
-
-        mxml_node_t *spCmdsCAN = mxmlFindElement(spMailbox, pSlave, "CoE", NULL, NULL, MXML_DESCEND);
+ 	  SlaveMboxInitCmd=malloc(sizeof(InitMboxCmdList));
+	  SlaveMboxInitCmd=NULL; 
+	   
+	   mxml_node_t *spCmdsCAN = mxmlFindElement(spMailbox, pSlave, "CoE", NULL, NULL, MXML_DESCEND);
        if (spCmdsCAN != NULL)
         { spNode=mxmlFindElement(spCmdsCAN,spMailbox,"InitCmds", NULL, NULL, MXML_DESCEND_FIRST);
-	      spNode=mxmlFindElement(spNode,spCmdsCAN,"InitCmd", NULL, NULL, MXML_DESCEND);
+		 if (spNode!= NULL)
+		 {
+	      
+		  EcMailboxCmdDesc *pCmdMbxDesc=NULL;
+			  element=mxmlFindElement(spNode,spCmdsCAN,"InitCmd","CompleteAccess", "1", MXML_DESCEND_FIRST);
+               if (element!= NULL)
+			      {pCmdMbxDesc = ReadCANopenCmd(element,spCmdsCAN,1);}
+ 		       else
+			       {element=mxmlFindElement(spNode,spCmdsCAN,"InitCmd",NULL, NULL, MXML_DESCEND_FIRST);
+                     if (element!= NULL)
+			         {pCmdMbxDesc = ReadCANopenCmd(element,spCmdsCAN,0);}
+				    }
+                if (element!= NULL)
+                 {
+				 if(pCmdMbxDesc->transition==ECAT_INITCMD_MBX_INIT)
+                       {ec_slaveMore[slave].nIPMbxCount++;}
+				   if(pCmdMbxDesc->transition==ECAT_INITCMD_P_S)
+				      {ec_slaveMore[slave].nPSMbxCount++;}
 
- 		   //EcMailboxCmdDesc *pCmdDesc = (EcMailboxCmdDesc*)malloc(sizeof(EcMailboxCmdDesc));
-
-           for( element = spNode; element; element =mxmlFindElement(element, spCmdsCAN,"InitCmd" ,NULL, NULL,MXML_NO_DESCEND) )
-            {
-		       
-            EcMailboxCmdDesc *pCmdMbxDesc = ReadCANopenCmd(element,spCmdsCAN);
-               if( pCmdMbxDesc )
-                {
-                  ec_slaveMore[slave].mboxCmdCnt++;
+				      ec_slaveMore[slave].mboxCmdCnt++;
 
                   ec_slaveMore[slave].mboxCmdLen += (unsigned short)SIZEOF_EcMailboxCmdDesc(pCmdMbxDesc);
-                 InsertMboxInitCmd(&SlaveMboxInitCmd,pCmdMbxDesc);
+                 
+				 InsertMboxInitCmd(&SlaveMboxInitCmd,pCmdMbxDesc);
                  free(pCmdMbxDesc);
                 }
-            }
-		  
+		  do
+		    { 
+			  EcMailboxCmdDesc *pCmdMbxDesc;
+			  element=mxmlFindElement(element,spCmdsCAN,"InitCmd","CompleteAccess", "1", MXML_NO_DESCEND);
+               if (element!= NULL)
+			      {pCmdMbxDesc = ReadCANopenCmd(element,spCmdsCAN,1);}
+ 		       else
+			      { element=mxmlFindElement(element,spCmdsCAN,"InitCmd",NULL, NULL, MXML_NO_DESCEND);
+                   if (element!= NULL)
+			      {pCmdMbxDesc = ReadCANopenCmd(element,spCmdsCAN,0);}
+				  }
+               if (element!= NULL)
+			    {
+                 if(pCmdMbxDesc->transition==ECAT_INITCMD_MBX_INIT)
+                       {plist->ec_slave.nIPMbxCount++;}
+				   if(pCmdMbxDesc->transition==ECAT_INITCMD_P_S)
+				      {plist->ec_slave.nPSMbxCount++;}
+
+				      plist->ec_slave.mboxCmdCnt++;
+
+                  plist->ec_slave.mboxCmdLen += (unsigned short)SIZEOF_EcMailboxCmdDesc(pCmdMbxDesc);
+                 
+				 InsertMboxInitCmd(&SlaveMboxInitCmd,pCmdMbxDesc);
+                 free(pCmdMbxDesc);
+                }
+            
+		   }
+		   while (element);
+		  }
          }
 /*
     mxml_node_t *spCmdsSoE = mxmlFindElement(spMailbox, pSlave, "SoE", NULL, NULL, MXML_DESCEND);
@@ -1312,29 +1254,33 @@ if (spMailbox != NULL)
         }
     }
 */
-   ec_slaveMore[slave].pSlaveMailboxCmd=(InitMboxCmdList *)&SlaveMboxInitCmd;
+   
+   ec_slaveMore[slave].pSlaveMailboxCmd=(InitMboxCmdList *)SlaveMboxInitCmd; 
  } 
-
+  
      return 1;
 }
 //////////////////////////////////////////////////////////////////////////
 
 /************************************************************
 Reads the <Frame> node in the ENI XML file and stores the information
-@param[IN] pEcMaster = pointer to the GLOBAL variable Master
+
 @param[IN] pCyclic = pointer to the <Frame> node in the ENI XML file 
 @param[IN] Root = pointer to the Root of the ENI XML file
+
 @param[IN] autoIncrAddr = auto incremental address of the current slave
+
 @param[IN] bDcEnabled = TRUE if Distributed clock is enable for the current slave
 @param[IN] slave = index of the current slave
 @param[out] pCyclicDesc stores the information read from the ENI XML file
 ***************************************************************/
-void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDesc)
+
+void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDesc)
 {
     if( pCyclic== NULL )
         return;
 
-    //memset(pCyclicDesc, 0, sizeof(EcCycDesc));
+   
     mxml_node_t *pCycleTime = mxmlFindElement(pCyclic, Root, "CycleTime", NULL, NULL, MXML_DESCEND_FIRST);
     uint32 vCycTime = 0;
     if ( pCycleTime != NULL )
@@ -1343,8 +1289,8 @@ void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root
         vCycTime = (unsigned long) text2long(pCycleTime->child->value.opaque);
     }
 
-    pEcMaster->configCycTime=vCycTime;
-
+    
+   ec_slaveMore[0].configCycTime=vCycTime;
 
  mxml_node_t *pFrame=mxmlFindElement(pCyclic, Root, "Frame", NULL, NULL, MXML_DESCEND_FIRST);
  
@@ -1357,7 +1303,7 @@ void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root
 	mxml_node_t *spNode;
     mxml_node_t *element;
 	CycCmdList *pCycCmdList=NULL;
-    for( element = spCmds;element; element =mxmlFindElement(element, pFrame,"Cmd" ,NULL, NULL,MXML_NO_DESCEND))//element->NextSiblingElement("Cmd") )
+    for( element = spCmds;element; element =mxmlFindElement(element, pFrame,"Cmd" ,NULL, NULL,MXML_NO_DESCEND))
     {
         EcCmdDesc  *pCmd;
 		pCmd=malloc(sizeof(EcCmdDesc));
@@ -1374,12 +1320,6 @@ void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root
                 //read logical address
 				spNode=mxmlFindElement(element, pFrame,"Addr" ,NULL, NULL,MXML_DESCEND_FIRST);
                 pCmd->head.laddr = SWAPDWORD((unsigned long)(long) text2long(spNode->child->value.opaque));
-                if( pCmd->head.command == EC_CMD_LRD &&
-                    (uint32)SWAPDWORD(pCmd->head.laddr) >= pEcMaster->logAddressMBoxStates &&
-                    (uint32)SWAPDWORD(pCmd->head.laddr) <  pEcMaster->logAddressMBoxStates + (pEcMaster->sizeAddressMBoxStates+7)/8 )
-                {
-                    pCmd->mboxState = TRUE;
-                }
                 break;
             default:
                 //read address page and offset
@@ -1389,10 +1329,8 @@ void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root
                 pCmd->head.ADO = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
             }
             spNode=mxmlFindElement(element, pFrame,"DataLength" ,NULL, NULL,MXML_DESCEND_FIRST);
-            if (spNode != NULL) {
-                pCmd->head.dlength           =  ((unsigned short)(long) text2long(spNode->child->value.opaque));
-                
-            }
+            if (spNode != NULL) 
+			{pCmd->head.dlength =  ((unsigned short)(long) text2long(spNode->child->value.opaque));}
            
 
             //Read the states this command should be sent in.
@@ -1466,21 +1404,122 @@ void SetCyclicCmds(EcMaster *pEcMaster,  mxml_node_t *pCyclic, mxml_node_t *Root
     
 
 ///////////////////////////////////////////////////////////////////////////////////////////
+/*
+*read the ProcessImage node in the XML file and store the information about variables in the two buffers
+* VariableOutList and VariableInList
+*/
+void SetProcImg(mxml_node_t *ProcImg, mxml_node_t *Root)
+{
+ mxml_node_t *element,*spNode;
+ char *szName;
+ int LunStr,i,numIn=0,numOut=0;
+ ec_VariableList *VarList;
+	int countlist; 
+ mxml_node_t *Input=mxmlFindElement(ProcImg, Root,"Inputs" ,NULL, NULL,MXML_DESCEND_FIRST);
+ if (Input)
+  {mxml_node_t *Variable = mxmlFindElement(Input, ProcImg,"Variable" ,NULL, NULL,MXML_DESCEND_FIRST);
+   
+   for( element = Variable; element; element = mxmlFindElement(element, Input,"Variable" ,NULL, NULL,MXML_NO_DESCEND))
+     {
+	  ec_variable *VarDesc;
+	  VarDesc=malloc(sizeof(ec_variable));
+       memset(VarDesc,0, sizeof(ec_variable));
+
+	   spNode= mxmlFindElement(element, Input,"Name" ,NULL, NULL,MXML_DESCEND);
+	    if (spNode)
+		 {
+		   szName =(char *)(spNode->child->value.opaque);
+		   LunStr=strlen(szName);
+           i=0;
+		   while (szName[i]!='.')
+		      {i++;}
+		   strncpy(&(VarDesc->Slave),szName, i);
+		   szName+=i+1;
+		   LunStr-=i+1;
+		   strncpy(&(VarDesc->VarName), szName,LunStr);
+
+		  }
+		 spNode= mxmlFindElement(element, Input,"DataType" ,NULL, NULL,MXML_DESCEND);
+		  if (spNode)
+		   {
+		    strcpy(&(VarDesc->varType),(char *)(spNode->child->value.opaque));
+		    }
+          spNode= mxmlFindElement(element, Input,"BitSize" ,NULL, NULL,MXML_DESCEND);
+		  if (spNode)
+		   {
+		    VarDesc->VarLength=(uint16)(long)text2long(spNode->child->value.opaque);
+		    }
+          spNode= mxmlFindElement(element, Input,"BitOffs" ,NULL, NULL,MXML_DESCEND);
+		  if (spNode)
+		   {
+		    VarDesc->VarOffset=(uint16)(long)text2long(spNode->child->value.opaque);
+		    }
+          VarDesc->VarBase=(char *)&(InProc);
+       InsertVariable(&VariableInList, VarDesc);
+	   free(VarDesc);
+ 	   numIn++; 
+	 }
+   
+  }
+
+  mxml_node_t *Output=mxmlFindElement(ProcImg, Root,"Outputs" ,NULL, NULL,MXML_DESCEND_FIRST);
+ if (Output)
+  {mxml_node_t *Variable = mxmlFindElement(Output, ProcImg,"Variable" ,NULL, NULL,MXML_DESCEND_FIRST);
+   
+   for( element = Variable; element; element = mxmlFindElement(element, Output,"Variable" ,NULL, NULL,MXML_NO_DESCEND))
+     {
+	  ec_variable *VarDesc;
+	  VarDesc=malloc(sizeof(ec_variable));
+       memset(VarDesc,0, sizeof(ec_variable));
+
+	   spNode= mxmlFindElement(element, Output,"Name" ,NULL, NULL,MXML_DESCEND);
+	    if (spNode)
+		 {
+		   szName =(char *)(spNode->child->value.opaque);
+		   LunStr=strlen(szName);
+           i=0;
+		   while (szName[i]!= '.')
+		      {i++;}
+		   strncpy(&(VarDesc->Slave),szName, i);
+		   szName+=i+1;
+           LunStr-=i+1;
+		   strncpy(&(VarDesc->VarName), szName,LunStr);
+
+		  }
+		 spNode= mxmlFindElement(element, Output,"DataType" ,NULL, NULL,MXML_DESCEND);
+		  if (spNode)
+		   {
+		    strcpy(&(VarDesc->varType),(char *)(spNode->child->value.opaque));
+		    }
+          spNode= mxmlFindElement(element, Output,"BitSize" ,NULL, NULL,MXML_DESCEND);
+		  if (spNode)
+		   {
+		    VarDesc->VarLength=(uint16)(long)text2long(spNode->child->value.opaque);
+		    }
+          spNode= mxmlFindElement(element, Output,"BitOffs" ,NULL, NULL,MXML_DESCEND);
+		  if (spNode)
+		   {
+		    VarDesc->VarOffset=(uint16)(long)text2long(spNode->child->value.opaque);
+		    }
+          VarDesc->VarBase=(char *)&(OutProc);
+       InsertVariable(&VariableOutList, VarDesc);
+ 	   
+	   free(VarDesc);
+ 	   numOut++;  
+	 }
+    
+  } 
+ }
 /*******************************************************************************************
 
 Main function that reads the ENI XML file and call the functions to create the requested structures to store the information
-@param[IN] pMaster = pointer to the GLOBAL variable where to store information about the <Master> node
-@param[IN] Cyclic = pointer to the GLOBAL variable where to store information about the <Frame> node 
-@return 1 if successful
 
-History:
-         27-02-12, initialization modified
-		 21-12-11, initial version
+@return 1 if successful
 *********************************************************************************************/
 int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 //int CreateDevice (const char *strXMLConfig)
 {
-   
+   mxml_node_t *tree;
     uint16 autoIncrAddr = 0;
   
    
@@ -1490,16 +1529,11 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 /************************
   Load XML file and create tree
   ***********************/
-  FILE *fp;
-    mxml_node_t *tree;
-     
-    //fp = fopen(strXMLConfig, "r");
+  //FILE *fp;
+  //fp = fopen(strXMLConfig, "r");
 	
 	//create tree
     //	tree = mxmlLoadFile(NULL, fp,MXML_OPAQUE_CALLBACK); 
-	
-    
-	//tree=CreateXML();
 	tree=mxmlLoadString(NULL, data_xmlprova_xml, MXML_OPAQUE_CALLBACK); 
     //fclose(fp);
 	
@@ -1513,6 +1547,10 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 				{ec_slavecount++;
 				 element = mxmlFindElement(element, Root,"Slave" ,NULL, NULL, MXML_NO_DESCEND);
 				 }
+	
+	
+	//create SlaveList
+    CreateSlaveList(&SlaveList,ec_slavecount);	
 			
 			
 	  //find the node "master"
@@ -1521,7 +1559,8 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
       nodeMaster = mxmlFindElement(tree, tree,"Master",NULL, NULL, MXML_DESCEND);
 	   if (nodeMaster != NULL)
 	   {
-	     if (!CreateMaster(nodeMaster,ec_slavecount, &Master))
+	     
+ 		if (!CreateMaster(nodeMaster,ec_slavecount)) 
 		       return -1;
 	    }
 	   else
@@ -1542,28 +1581,20 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 						autoIncrAddr--;
 						NumSlave++;
                        
-/* TODO: da fix to enable DC
-#ifdef DC_SUPPORTED
-                            if (bDcEnable)
-                            {
-                                CEcDcMaster* pDcMaster = dynamic_cast<CEcDcMaster*>(pMaster);
-                                if (pDcMaster) {
-                                    pDcMaster->SetSyncMode(ECAT_DC_MODE_MASTER);
-                                    diag_printf("ECAT_DC_MODE_MASTER\n");
-                                }
-                            }
-#endif
-*/
-                          
-                       // }
                     }
         }
+		
+				 	
 		//Read Cyclic commands from XML file and create a list
 		pNode = mxmlFindElement(Root, tree,"Cyclic" ,NULL, NULL,MXML_DESCEND);
                 if( pNode )
                 {
-                    SetCyclicCmds(&Master, pNode, Root, &Cyclic);
+                    
+ 				    SetCyclicCmds(pNode, Root, &Cyclic);	
                 }
+		pNode=mxmlFindElement(Root, tree,"ProcessImage" ,NULL, NULL, MXML_DESCEND);
+		    if ( pNode )
+			    {SetProcImg(pNode, Root);}
 				
  	return 1;  
 	}
@@ -1571,4 +1602,5 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 	  return -1;
 	  
   }
+ 
  
