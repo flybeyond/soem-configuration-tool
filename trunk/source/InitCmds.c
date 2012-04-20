@@ -129,7 +129,7 @@ int GetTransition(void)
 				}
            }					
 			
-	    
+	 
 return EcatTransition;	 
    }
 //////////////////////////////////////////////////////////////////////////
@@ -229,7 +229,9 @@ return EcatTransition;
 				    {set_fmmu(CmdDesc,Slave);
 					}
 				 if(((CmdDesc->ecHead.ADO-ECT_REG_SM0)>=0)&&((CmdDesc->ecHead.ADO-ECT_REG_SM0)<=0x18))
-				    {set_sm(CmdDesc,Slave);
+				    {
+					 set_sm(CmdDesc,Slave);
+					 EC_PRINT("SMs of Slave %d updated\n\r", Slave);
 					} 
 				 break;
  	 case EC_CMD_APRW:
@@ -242,6 +244,7 @@ return EcatTransition;
 	             wkc=ec_FPWR(CmdDesc->ecHead.ADP,CmdDesc->ecHead.ADO,len,CmdDesc->data,EC_TIMEOUTSAFE);
 				 if(((CmdDesc->ecHead.ADO-ECT_REG_FMMU0)>=0)&&((CmdDesc->ecHead.ADO-ECT_REG_FMMU0)<=0x30))
 				    {set_fmmu(CmdDesc,Slave);
+					 EC_PRINT("FMMUs of Slave %d updated\n\r", Slave);
 					}
 				 if(((CmdDesc->ecHead.ADO-ECT_REG_SM0)>=0)&&((CmdDesc->ecHead.ADO-ECT_REG_SM0)<=0x18))
 				    {set_sm(CmdDesc,Slave);
@@ -257,9 +260,11 @@ return EcatTransition;
 	             wkc=ec_BWR(CmdDesc->ecHead.ADP,CmdDesc->ecHead.ADO,len,CmdDesc->data,EC_TIMEOUTSAFE);
 				 if(CmdDesc->ecHead.ADO==ECT_REG_FMMU0)
 				    {set_fmmu(CmdDesc,0);
+					 EC_PRINT("FMMUs of ALL Slave updated\n\r");
 					}
 				 if(CmdDesc->ecHead.ADO==ECT_REG_SM0)
 				    {set_sm(CmdDesc,0);
+					 EC_PRINT("SMs of ALL Slave updated\n\r");
 					} 
 				 break;
 	 //case EC_CMD_BRW:
@@ -303,6 +308,7 @@ char i;
    retry=CmdDesc->retries;
       if (CmdDesc->ecHead.ADO==0x502||CmdDesc->ecHead.ADO==0x508)
 	    {
+		  
 		  ec_eeprom2master(slave);
 		 
          if (ec_eeprom_waitnotbusyAP(CmdDesc->ecHead.ADP, &estat, EC_TIMEOUTEEP))
@@ -319,20 +325,18 @@ char i;
 	        }
      
 	    }
-       //EC_PRINT("%s\n",CmdDesc->cmt);
+       EC_PRINT("Command: %s\n",CmdDesc->cmt);
  	 else 
 	    {
 		 do
 		 {
 		   wkc=EcatCmdReq(CmdDesc, &data, slave);
-	   
+	       EC_PRINT("Command: %s\n",CmdDesc->cmt);
           if (CmdDesc->cnt != ECAT_WCOUNT_DONT_CHECK && CmdDesc->cnt !=wkc)
 		   {
-		   	 
-			       
- 				  //EC_PRINT("WRONG WKC\n"); 
- 				   wkc=-1; 
-			       goto again;
+		   	 EC_PRINT("WRONG WKC\n"); 
+ 			 wkc=-1; 
+			 goto again;
 			}			
 		    
 		 if (((CmdDesc->cnt == ECAT_WCOUNT_DONT_CHECK)||(CmdDesc->cnt ==wkc))&&(CmdDesc->validate==0))
@@ -350,7 +354,7 @@ char i;
 			      if(CmdDesc->data[i]!=CmdDesc->validateData[i])
 		          	 {			   
 		                
- 					//EC_PRINT("VALIDATION FAILED\n"); 
+ 					  EC_PRINT("VALIDATION FAILED\n"); 
 						wkc=-1;
 				        goto again;
                       }				   
@@ -359,7 +363,10 @@ char i;
 			    }
 
 			 
-again:	if (retry>0)retry--; 
+again:	if (retry>0)
+               {
+			    EC_PRINT("New Attempt: %s\n",CmdDesc->cmt);
+			    retry--;} 
 	
 		 }
 	 while (retry>0);
@@ -492,7 +499,7 @@ int BeforeSlaveCmd(uint16 transition)
 	             MbxNumCmd=ec_slaveMore[slave].nPSMbxCount;
 	              if (MbxNumCmd)
 	               {
-				    				  
+				    EC_PRINT("Config Mailbox\n");				  
 				    MbxSlaveCmdList=ec_slaveMore[slave].pSlaveMailboxCmd;
 		            while (MbxNumCmd!=0)
 		                  {
@@ -512,9 +519,16 @@ int BeforeSlaveCmd(uint16 transition)
 							           {
 									    Len++;
 										wkc=ec_SDOwrite(slave,Index,SubIndex,FALSE,Len,MbxSlaveCmdList->MbInitCmd.Data,EC_TIMEOUTRXM);
-										if(wkc==0) {return -1;}
+										if(wkc==0)
+        										{
+									             EC_PRINT("Mailbox Configuration FAILED\n");
+										         return -1;
+											    }
 						       	        }
-									  else return -1;
+									  else {
+									        EC_PRINT("Mailbox Configuration FAILED\n");
+										    return -1;
+											}
 								   }
 								}
                           MbxNumCmd--;
@@ -535,6 +549,7 @@ int BeforeSlaveCmd(uint16 transition)
 	    MbxNumCmd=ec_slaveMore[slave].nIPMbxCount;
 	              if (MbxNumCmd)
 	               {
+				    EC_PRINT("Config Mailbox\n");
 				    MbxSlaveCmdList=ec_slaveMore[slave].pSlaveMailboxCmd;
 		              while (MbxNumCmd!=0)
 		                  {
@@ -556,9 +571,16 @@ int BeforeSlaveCmd(uint16 transition)
 							           {
 									    Len++;
 										wkc=ec_SDOwrite(slave,Index,SubIndex,FALSE,Len,MbxSlaveCmdList->MbInitCmd.Data,EC_TIMEOUTRXM);
-										if(wkc==0) {return -1;}
+										if(wkc==0)
+        										{
+									             EC_PRINT("Mailbox Configuration FAILED\n");
+										         return -1;
+											    }
 						       	        }
-									  else return -1;
+									  else {
+									        EC_PRINT("Mailbox Configuration FAILED\n");
+										    return -1;
+											}
 								   }
 								}
                             MbxNumCmd--;
@@ -587,14 +609,15 @@ int TransitionIP(void)
  
  
  /*send before_slave cmds*/
+ EC_PRINT("Send before_slave Init Cmds for Transition IP\n\r");
  if(BeforeSlaveCmd(ECAT_INITCMD_I_P)>0)
  {
- 
+   EC_PRINT("Send slave Init Cmds for Transition IP\n\r");
   /*config slaves*/
      
   for (slave = 1; slave <= ec_slavecount; slave++)
         {
-		 
+		  EC_PRINT("Config Slave %d\n", slave);
 		  
           ADPh = (uint16)(1 - slave);
  	    	ec_slave[slave].Itype = etohs(ec_APRDw(ADPh, ECT_REG_PDICTL, EC_TIMEOUTRET));
@@ -609,9 +632,12 @@ int TransitionIP(void)
             ec_APWRw(ADPh, ECT_REG_DLCTL, htoes(b), EC_TIMEOUTRET); /* set non ecat frame behaviour */
          } 
 	/*slave_init_cmds*/
-	
+	EC_PRINT("Send Init Cmds\n");
     if (SlaveInitCmd(ECAT_INITCMD_I_P)<0)	
-      {return -1;} 
+      {
+	   EC_PRINT("slave Init Cmds FAILED\n\r");
+	   return -1;
+	   } 
 
 	/*update the ec_slave fields (second part; the first part has been done by XML parsing) this part is taken from ethercatconfig.c*/
   for (slave=1; slave<=ec_slavecount; slave++)
@@ -685,7 +711,7 @@ int TransitionIP(void)
                 while (slavec > 0);
             }
 
-	/* set default mailbox configuration if slave has mailbox */ //DA ELIMINARE		
+	/* set default mailbox configuration if slave has mailbox */ 	
 	if (plist->ec_slave.mbx_l>0)
 			{	
 				ec_slave[slave].SMtype[0] = 1;
@@ -715,7 +741,9 @@ int TransitionIP(void)
 			
 	}
   }
-   else return -1;
+   else 
+   {EC_PRINT("before_slave Init Cmds FAILED\n\r");
+    return -1;}
  ec_readstate();
  
   return 1;
@@ -733,18 +761,22 @@ brief: execute all other transitions than IP.
 int OtherTransitions(uint16 transition)
 {
  
-
+EC_PRINT("Send before_slave Init Cmds\n\r");
  if(BeforeSlaveCmd(transition)>0) 
  {
- 
+   EC_PRINT("Send slave Init Cmds\n\r");
  /*slave_init_cmds*/
 	
     if (SlaveInitCmd(transition)<0)	
-      {return -1;} 
+      {
+	   EC_PRINT("slave Init Cmds FAILED\n\r");
+	   return -1;
+	   } 
 	
  }
   else 
-    return -1;	
+    {EC_PRINT("before_slave Init Cmds FAILED\n\r");
+    return -1;}	
   ec_readstate();
 
  
@@ -765,102 +797,143 @@ int MasterStateMachine(void)
  	/*transition_I_P*/
 	 if (Ec_Transition&ECAT_INITCMD_I_P)
 	    {
-		 //if(TransitionIP(pMaster)>0)
+		 EC_PRINT("Start Init-to-PreOP Transition\n");
+		 
  		 if(TransitionIP()>0) 
 		     Ec_Transition-=ECAT_INITCMD_I_P;
  
 		else
-		  
+		   {
+		   EC_PRINT("Transition Init-to-PreOP FAILED\n\r");
 		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
-		   
+		   }
 		}   
 	/*transition_P_S*/	   
     if (Ec_Transition&ECAT_INITCMD_P_S)
 	  {
-	    
+	    EC_PRINT("Start PreOP-to-SafeOP Transition\n");
 		if(OtherTransitions(ECAT_INITCMD_P_S)>0)
 		     Ec_Transition-=ECAT_INITCMD_P_S;
 		else
+		   {
+		   EC_PRINT("Transition PreOP-to-SafeOP FAILED\n\r");
 		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
 		}  
 	 
 	/*transition_S_O*/	   
    if (Ec_Transition&ECAT_INITCMD_S_O)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_S_O)>0)
+	    {
+		 EC_PRINT("Start SafeOP-to-OP Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_S_O)>0)
 		     Ec_Transition-=ECAT_INITCMD_S_O;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition SafeOP-to-OP FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }
 	
  /*transition_O_I*/	   
    if (Ec_Transition&ECAT_INITCMD_O_I)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_O_I)>0)
+	    {
+		 EC_PRINT("Start OP-to-Init Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_O_I)>0)
 		     Ec_Transition-=ECAT_INITCMD_O_I;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition OP-to-Init FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }
 		 	
  /*transition_O_S*/	   
    if (Ec_Transition&ECAT_INITCMD_O_S)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_O_S)>0)
+	    {
+		 EC_PRINT("Start OP-to-SafeOP Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_O_S)>0)
 		     Ec_Transition-=ECAT_INITCMD_O_S;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition OP-to-SafeOP FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }
 		 	
  /*transition_O_P*/	   
    if (Ec_Transition&ECAT_INITCMD_O_P)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_O_P)>0)
+	    {
+		 EC_PRINT("Start OP-to-PreOP Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_O_P)>0)
 		     Ec_Transition-=ECAT_INITCMD_O_P;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition OP-to-PreOP FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }
 		 	
 	/*transition_S_P*/	   
    if (Ec_Transition&ECAT_INITCMD_S_P)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_S_P)>0)
+	    {
+		 EC_PRINT("Start SafeOp-to-PreOP Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_S_P)>0)
 		     Ec_Transition-=ECAT_INITCMD_S_P;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition SafeOp-to-PreOP FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }	
 
  /*transition_S_I*/	   
    if (Ec_Transition&ECAT_INITCMD_S_I)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_S_I)>0)
+	    {
+		 EC_PRINT("Start SafeOp-to-Init Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_S_I)>0)
 		     Ec_Transition-=ECAT_INITCMD_S_I;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition SafeOp-to-Init FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }
 
  /*transition_P_I*/	   
    if (Ec_Transition&ECAT_INITCMD_P_I)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_P_I)>0)
+	    {
+		 EC_PRINT("Start PreOP-to-Init Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_P_I)>0)
 		     Ec_Transition-=ECAT_INITCMD_P_I;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition PreOP-to-Init FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }	
  /*transition_B_I*/	   
    if (Ec_Transition&ECAT_INITCMD_B_I)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_B_I)>0)
+	    {
+		 EC_PRINT("Start Boot-to-Init Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_B_I)>0)
 		     Ec_Transition-=ECAT_INITCMD_B_I;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition Boot-to-Init FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }
  /*transition_I_B*/	   
    if (Ec_Transition&ECAT_INITCMD_I_B)
-	    {//if(OtherTransitions(pMaster,ECAT_INITCMD_I_B)>0)
+	    {
+		 EC_PRINT("Start Init-to-Boot Transition\n");
 		 if(OtherTransitions(ECAT_INITCMD_I_B)>0) 
 		     Ec_Transition-=ECAT_INITCMD_I_B;
 		   else
-		    return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		    {
+		   EC_PRINT("Transition Init-to-Boot FAILED\n\r");
+		   return -1; //TODO: REPLACE WITH SOME ERR_CODE
+		   }
          }					
 	 return 1;	
 	   
@@ -875,17 +948,17 @@ int MasterStateMachine(void)
 int   MasterRequestState(uint16 state)
 {
 	ec_slaveMore[0].reqState = state;
-
+   EC_PRINT("Requested State: %d Current State: %d\n", ec_slaveMore[0].reqState, ec_slave[0].state);
  if (ec_slaveMore[0].reqState != ec_slave[0].state) 
     {
 	 
  	Ec_Transition=GetTransition(); 
       if(Ec_Transition)
 	    {
-		 
+		   EC_PRINT("Transitions needed: %d\n\r", Ec_Transition);
  	    	if (MasterStateMachine()<0) 
 		    {
-			  //EC_ PRINTF("STATE NO REACHEABLE"); 
+			  EC_ PRINT("STATE NO REACHEABLE\r\n"); 
 			 
              Ec_Transition=0;
 			 return -1;
@@ -894,6 +967,6 @@ int   MasterRequestState(uint16 state)
 	   
 		
 	 }	
-   
+    EC_ PRINT("State successfull updated\r\n"); 
   return 1;  
 }

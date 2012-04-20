@@ -15,9 +15,18 @@
 #include "xmlprova.c"
 #include "ethercatmain.h"
 #include "ethercatbase.h"
-//#include "Eth_Register_Include.h"
-//EcMaster Master;
+
 EcCycDesc Cyclic;
+
+
+// define if debug printf is needed
+//#define EC_DEBUG
+
+#ifdef EC_DEBUG
+#define EC_PRINT printf
+#else
+#define EC_PRINT(...) do {} while (0)
+#endif
 
  //////////////////////////////////////////////////////
  void InsertVariable(ec_VariableList **plist, ec_variable *VarDesc)
@@ -292,7 +301,7 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
     unsigned char *pData = NULL;
     unsigned char *pVal = NULL;
     unsigned char  *pMask = NULL;
-    uint32 hr = S_OK;
+    uint32 hr = EC_ERR_OK;
     int i;	
 	
 
@@ -338,9 +347,9 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
 			{pVal = XmlGetBinDataChar((char *)spNode->child->value.opaque, &nVal);}
             if( nVal != nData )
             {
-                printf("E_FAIL\n");
+                EC_PRINT("Unable to read node\n");
 
-                hr = E_FAIL; goto throwj2;
+                hr = EC_ERR_NOK; goto throwj2;
 
             }
             
@@ -351,9 +360,9 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
                 pMask = XmlGetBinDataChar((char*)spNode->child->value.opaque, &nVal);
                 if( nVal != nData )
                 {
-                    printf("E_FAIL\n");
+                    EC_PRINT("Unable to read node\n");
 
-                    hr = E_FAIL; goto throwj2;
+                    hr = EC_ERR_NOK; goto throwj2;
 
                 }
                 
@@ -503,7 +512,7 @@ EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode, mxml_node_t *TopNode)
     
 
 throwj2:
-    if (hr == E_FAIL)
+    if (hr == EC_ERR_NOK)
     {
         free(pDesc);
         pDesc = NULL;
@@ -896,10 +905,25 @@ int CreateMaster(mxml_node_t *pMasterNode, long nSlaves)
          {ec_slaveMore[0].nOSInitCount++;}
 	loop=loop->nextCmd;
     }
+	EC_PRINT("Number of before_slave Init Commands for transition:\n");
+    EC_PRINT("Transition I_P: %d\n",ec_slaveMore[0].nIPInitCount);
+    EC_PRINT("Transition P_I: %d\n",ec_slaveMore[0].nPIInitCount);
+    EC_PRINT("Transition B_I: %d\n",ec_slaveMore[0].nBIInitCount);
+    EC_PRINT("Transition S_I: %d\n",ec_slaveMore[0].nSIInitCount);
+    EC_PRINT("Transition O_I: %d\n",ec_slaveMore[0].nOIInitCount);
+    EC_PRINT("Transition P_S: %d\n",ec_slaveMore[0].nPSInitCount);
+    EC_PRINT("Transition S_P: %d\n",ec_slaveMore[0].nSPInitCount);
+    EC_PRINT("Transition S_O: %d\n",ec_slaveMore[0].nSOInitCount);
+    EC_PRINT("Transition O_S: %d\n",ec_slaveMore[0].nOSInitCount);
+    EC_PRINT("Transition O_P: %d\n",ec_slaveMore[0].nOPInitCount);
+    EC_PRINT("Transition I_B: %d\n",ec_slaveMore[0].nIBInitCount);
 	return 1;
    }
    else 
-   return -1;
+   {
+    EC_PRINT("Unable to read init command from node Master\n\r");
+    return -1;
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -934,7 +958,7 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 	
     if( spNodePhysAddr == NULL )
 	  {
-        printf("PhysAddr not present\n");
+        EC_PRINT("PhysAddr not present\n\r");
         return -1;
       }
    
@@ -944,7 +968,7 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 	
     if( spNodeVendorId == NULL )
 	{
-        printf("VendorId not present\n");
+        EC_PRINT("VendorId not present\n\r");
         return -1;
     }
     ec_slave[slave].eep_id = (uint32)(long) text2long(spNodeVendorId->child->value.opaque);	
@@ -953,7 +977,7 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 	
     if( spNodeProductCode == NULL )
 	{
-        printf("ProductCode not present\n");
+        EC_PRINT("ProductCode not present\n\r");
         return -1;
     }
     ec_slave[slave].eep_man = (uint32)(long) text2long(spNodeProductCode->child->value.opaque);	
@@ -962,7 +986,7 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 
     if( spNodeRevisionNo == NULL )
 	{
-        printf("RevisionNo not present\n");
+        EC_PRINT("RevisionNo not present\n\r");
         return -1;
     }
     ec_slave[slave].eep_rev = (uint32)(long) text2long(spNodeRevisionNo->child->value.opaque);	
@@ -972,7 +996,7 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
  
     if( spNodeSerialNo == NULL )
 	{
-        printf("SerialNo not present\n");
+        EC_PRINT("SerialNo not present\n\r");
         return -1;
     }
     ec_slaveMore[slave].serialNo = (uint32)(long) text2long(spNodeSerialNo->child->value.opaque);	
@@ -989,8 +1013,8 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
                     szName[strlen(szName)-2] = '\0';
     }
      strncpy(ec_slave[slave].name, szName, EC_MAXNAME);
-    ec_slave[slave].name[EC_MAXNAME] = 0;
-    
+	 ec_slave[slave].name[EC_MAXNAME] = 0;
+    EC_PRINT("Terminal: %s\n",ec_slave[slave].name);
   mxml_node_t *pszPhysics = mxmlFindElement(spNodeInfo, pSlave, "Physics", NULL, NULL, MXML_DESCEND_FIRST);
   if (pszPhysics)
     {
@@ -1015,28 +1039,40 @@ int CreateSlave(mxml_node_t *pSlave, mxml_node_t *Root, uint16 autoIncrAddr, boo
 mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML_DESCEND_FIRST);
     
     if( spMailbox != NULL)
-    {   mxml_node_t *spSend=mxmlFindElement(spMailbox, pSlave, "Send", NULL, NULL, MXML_DESCEND_FIRST);
+    {   EC_PRINT("Mailbox configuration:\n");
+	  mxml_node_t *spSend=mxmlFindElement(spMailbox, pSlave, "Send", NULL, NULL, MXML_DESCEND_FIRST);
 	
         //Read size and address of the output mailbox
 		if (spSend != NULL)
-        {  spNode=mxmlFindElement(spSend, spMailbox, "Start", NULL, NULL, MXML_DESCEND);
+        {  EC_PRINT("Output Mailbox: ");
+		  spNode=mxmlFindElement(spSend, spMailbox, "Start", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
                 {ec_slave[slave].mbx_wo = (unsigned short)(long) text2long(spNode->child->value.opaque);
-				 ec_slave[slave].SMtype[0] = 1;}	
+				 ec_slave[slave].SMtype[0] = 1;
+				EC_PRINT("Start %4x", ec_slave[slave].mbx_wo);
+				}	
 				spNode=mxmlFindElement(spSend, spMailbox, "Length", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
-                ec_slave[slave].mbx_l = (unsigned short)(long) text2long(spNode->child->value.opaque);
+                {
+				 ec_slave[slave].mbx_l = (unsigned short)(long) text2long(spNode->child->value.opaque);
+				 EC_PRINT("Length %4x\n", ec_slave[slave].mbx_l);
+				}
 		}
         //Read size and address of the input mailbox
 		spSend=mxmlFindElement(spMailbox, pSlave, "Recv", NULL, NULL, MXML_DESCEND_FIRST); 
         if (spSend != NULL)
-        {   spNode=mxmlFindElement(spSend, spMailbox, "Start", NULL, NULL, MXML_DESCEND);
+        { EC_PRINT("Input Mailbox: ");  
+		  spNode=mxmlFindElement(spSend, spMailbox, "Start", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
                 {ec_slave[slave].mbx_ro = (unsigned short)(long) text2long(spNode->child->value.opaque);
+				 EC_PRINT("Start %4x", ec_slave[slave].mbx_ro);
 				 ec_slave[slave].SMtype[1] = 2;}	
 				spNode=mxmlFindElement(spSend, spMailbox, "Length", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
-                ec_slave[slave].mbx_rl = (unsigned short)(long) text2long(spNode->child->value.opaque);	
+                {
+				 ec_slave[slave].mbx_rl = (unsigned short)(long) text2long(spNode->child->value.opaque);	
+				 EC_PRINT("Length %4x\n", ec_slave[slave].mbx_rl);
+				}
 				spNode=mxmlFindElement(spSend, spMailbox, "PollTime", NULL, NULL, MXML_DESCEND);
             if (spNode != NULL)
             {
@@ -1082,6 +1118,7 @@ mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML
                      ec_slave[slave].mbx_proto = ECT_MBXPROT_SOE; 
 					 }
             }
+		  EC_PRINT("Protocol %4x\n", ec_slave[slave].mbx_proto);
         }
     }
 
@@ -1148,6 +1185,18 @@ mxml_node_t *spMailbox=mxmlFindElement(pSlave, Root, "Mailbox", NULL, NULL, MXML
     }
   
 	}
+EC_PRINT("Number of Init Commands for transition:\n");
+EC_PRINT("Transition I_P: %d\n",ec_slaveMore[slave].nIPInitCount);
+EC_PRINT("Transition P_I: %d\n",ec_slaveMore[slave].nPIInitCount);
+EC_PRINT("Transition B_I: %d\n",ec_slaveMore[slave].nBIInitCount);
+EC_PRINT("Transition S_I: %d\n",ec_slaveMore[slave].nSIInitCount);
+EC_PRINT("Transition O_I: %d\n",ec_slaveMore[slave].nOIInitCount);
+EC_PRINT("Transition P_S: %d\n",ec_slaveMore[slave].nPSInitCount);
+EC_PRINT("Transition S_P: %d\n",ec_slaveMore[slave].nSPInitCount);
+EC_PRINT("Transition S_O: %d\n",ec_slaveMore[slave].nSOInitCount);
+EC_PRINT("Transition O_S: %d\n",ec_slaveMore[slave].nOSInitCount);
+EC_PRINT("Transition O_P: %d\n",ec_slaveMore[slave].nOPInitCount);
+EC_PRINT("Transition I_B: %d\n",ec_slaveMore[slave].nIBInitCount);
 
  ec_slaveMore[slave].cInitCmds =INITCMD_INACTIVE;   
 if (spMailbox != NULL)
@@ -1216,7 +1265,8 @@ if (spMailbox != NULL)
 		   }
 		   while (element);
 		  }
-         }
+		
+        }
 /*
     mxml_node_t *spCmdsSoE = mxmlFindElement(spMailbox, pSlave, "SoE", NULL, NULL, MXML_DESCEND);
     if (spCmdsSoE != NULL)
@@ -1287,6 +1337,7 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
     {
         
         vCycTime = (unsigned long) text2long(pCycleTime->child->value.opaque);
+		EC_PRINT("CycleTime: %8x\n", vCycTime);
     }
 
     
@@ -1296,8 +1347,10 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
  
   mxml_node_t *spCmds = mxmlFindElement(pFrame, pCyclic, "Cmd", NULL, NULL, MXML_DESCEND_FIRST);
     if( spCmds == NULL )
-        return;
-
+	  {
+	    EC_PRINT("Unable to read Frame node!\n\r");
+        return -1;
+      }
    
 	pCyclicDesc->state= EC_STATE_PRE_OP|EC_STATE_SAFE_OP|EC_STATE_OPERATIONAL;
 	mxml_node_t *spNode;
@@ -1312,6 +1365,7 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
             //read command type
 			spNode=mxmlFindElement(element, pFrame,"Cmd" ,NULL, NULL,MXML_DESCEND_FIRST);
             pCmd->head.command = (unsigned char) text2uchar(spNode->child->value.opaque);
+			EC_PRINT("Found command: %2d\n",pCmd->head.command);
             switch (pCmd->head.command )
             {
             case EC_CMD_LRD:
@@ -1320,6 +1374,7 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
                 //read logical address
 				spNode=mxmlFindElement(element, pFrame,"Addr" ,NULL, NULL,MXML_DESCEND_FIRST);
                 pCmd->head.laddr = SWAPDWORD((unsigned long)(long) text2long(spNode->child->value.opaque));
+				EC_PRINT("Logic address: %8x\n",pCmd->head.laddr);
                 break;
             default:
                 //read address page and offset
@@ -1327,12 +1382,14 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
                 pCmd->head.ADP = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
 				spNode=mxmlFindElement(element, pFrame,"Ado" ,NULL, NULL,MXML_DESCEND_FIRST);
                 pCmd->head.ADO = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
+				EC_PRINT("ADP: %4x ADO: %4x\n",pCmd->head.ADP, pCmd->head.ADO);
             }
             spNode=mxmlFindElement(element, pFrame,"DataLength" ,NULL, NULL,MXML_DESCEND_FIRST);
             if (spNode != NULL) 
-			{pCmd->head.dlength =  ((unsigned short)(long) text2long(spNode->child->value.opaque));}
-           
-
+			{
+			  pCmd->head.dlength =  ((unsigned short)(long) text2long(spNode->child->value.opaque));
+              EC_PRINT("Datalength %4x\n",pCmd->head.dlength);
+            }
             //Read the states this command should be sent in.
             mxml_node_t *spStates = mxmlFindElement(element, pFrame,"State" ,NULL, NULL,MXML_DESCEND_FIRST);
             mxml_node_t *element1;
@@ -1352,10 +1409,12 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
             //read working counter
 			spNode=mxmlFindElement(element, pFrame,"Cnt" ,NULL, NULL,MXML_DESCEND_FIRST);
             if( spNode != NULL )
+			{
                 pCmd->cntRecv  = (unsigned short)(long) text2long(spNode->child->value.opaque);
-
+                EC_PRINT("Expected WKC %4x\n\r",pCmd->cntRecv);
+			}
             pCmd->cmdSize  = sizeof(ec_comt)+sizeof(uint16)+(pCmd->head.dlength);
-
+            
             pCmd->copyInputs  = FALSE;
             pCmd->copyOutputs = FALSE;
             spNode=mxmlFindElement(element, pFrame,"InputOffs" ,NULL, NULL,MXML_DESCEND_FIRST);
@@ -1395,6 +1454,7 @@ void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDe
 
             }
 		 //insert the command in the list
+		 
 		 InsertCycCmd(&pCycCmdList,pCmd);
 		 free(pCmd);
     }
@@ -1413,11 +1473,13 @@ void SetProcImg(mxml_node_t *ProcImg, mxml_node_t *Root)
  mxml_node_t *element,*spNode;
  char *szName;
  int LunStr,i,numIn=0,numOut=0;
- ec_VariableList *VarList;
-	int countlist; 
+ 
+	
  mxml_node_t *Input=mxmlFindElement(ProcImg, Root,"Inputs" ,NULL, NULL,MXML_DESCEND_FIRST);
  if (Input)
-  {mxml_node_t *Variable = mxmlFindElement(Input, ProcImg,"Variable" ,NULL, NULL,MXML_DESCEND_FIRST);
+  {
+    EC_PRINT("Found Input Process Image\n\r");
+   mxml_node_t *Variable = mxmlFindElement(Input, ProcImg,"Variable" ,NULL, NULL,MXML_DESCEND_FIRST);
    
    for( element = Variable; element; element = mxmlFindElement(element, Input,"Variable" ,NULL, NULL,MXML_NO_DESCEND))
      {
@@ -1434,37 +1496,43 @@ void SetProcImg(mxml_node_t *ProcImg, mxml_node_t *Root)
 		   while (szName[i]!='.')
 		      {i++;}
 		   strncpy(&(VarDesc->Slave),szName, i);
+		   EC_PRINT("Terminal: %s\n", VarDesc->Slave);
 		   szName+=i+1;
 		   LunStr-=i+1;
 		   strncpy(&(VarDesc->VarName), szName,LunStr);
-
+           EC_PRINT("Variable: %s\n", VarDesc->VarName);
 		  }
 		 spNode= mxmlFindElement(element, Input,"DataType" ,NULL, NULL,MXML_DESCEND);
 		  if (spNode)
 		   {
 		    strcpy(&(VarDesc->varType),(char *)(spNode->child->value.opaque));
+			EC_PRINT("DataType: %s\n", VarDesc->varType);
 		    }
           spNode= mxmlFindElement(element, Input,"BitSize" ,NULL, NULL,MXML_DESCEND);
 		  if (spNode)
 		   {
 		    VarDesc->VarLength=(uint16)(long)text2long(spNode->child->value.opaque);
+			EC_PRINT("BitSize: %3d\n", VarDesc->VarLength);
 		    }
           spNode= mxmlFindElement(element, Input,"BitOffs" ,NULL, NULL,MXML_DESCEND);
 		  if (spNode)
 		   {
 		    VarDesc->VarOffset=(uint16)(long)text2long(spNode->child->value.opaque);
+			EC_PRINT("BitOffset: %4x\n\r", VarDesc->VarOffset);
 		    }
-          VarDesc->VarBase=(char *)&(InProc);
+         		  
        InsertVariable(&VariableInList, VarDesc);
 	   free(VarDesc);
  	   numIn++; 
 	 }
-   
+    EC_PRINT("Found %d variables in Input Process Image\r\n", numIn);
   }
 
   mxml_node_t *Output=mxmlFindElement(ProcImg, Root,"Outputs" ,NULL, NULL,MXML_DESCEND_FIRST);
  if (Output)
-  {mxml_node_t *Variable = mxmlFindElement(Output, ProcImg,"Variable" ,NULL, NULL,MXML_DESCEND_FIRST);
+  {
+    EC_PRINT("Found Output Process Image\n\r");
+	mxml_node_t *Variable = mxmlFindElement(Output, ProcImg,"Variable" ,NULL, NULL,MXML_DESCEND_FIRST);
    
    for( element = Variable; element; element = mxmlFindElement(element, Output,"Variable" ,NULL, NULL,MXML_NO_DESCEND))
      {
@@ -1481,33 +1549,38 @@ void SetProcImg(mxml_node_t *ProcImg, mxml_node_t *Root)
 		   while (szName[i]!= '.')
 		      {i++;}
 		   strncpy(&(VarDesc->Slave),szName, i);
+		   EC_PRINT("Terminal: %s\n", VarDesc->Slave);
 		   szName+=i+1;
            LunStr-=i+1;
 		   strncpy(&(VarDesc->VarName), szName,LunStr);
+		   EC_PRINT("Variable: %s\n", VarDesc->VarName);
 
 		  }
 		 spNode= mxmlFindElement(element, Output,"DataType" ,NULL, NULL,MXML_DESCEND);
 		  if (spNode)
 		   {
 		    strcpy(&(VarDesc->varType),(char *)(spNode->child->value.opaque));
+			EC_PRINT("DataType: %s\n", VarDesc->varType);
 		    }
           spNode= mxmlFindElement(element, Output,"BitSize" ,NULL, NULL,MXML_DESCEND);
 		  if (spNode)
 		   {
 		    VarDesc->VarLength=(uint16)(long)text2long(spNode->child->value.opaque);
+			 EC_PRINT("BitSize: %3d\n", VarDesc->VarLength);
 		    }
           spNode= mxmlFindElement(element, Output,"BitOffs" ,NULL, NULL,MXML_DESCEND);
 		  if (spNode)
 		   {
 		    VarDesc->VarOffset=(uint16)(long)text2long(spNode->child->value.opaque);
+			EC_PRINT("BitOffset: %4x\n\r", VarDesc->VarOffset);
 		    }
-          VarDesc->VarBase=(char *)&(OutProc);
+        
        InsertVariable(&VariableOutList, VarDesc);
  	   
 	   free(VarDesc);
  	   numOut++;  
 	 }
-    
+    EC_PRINT("Found %d variables in Otuput Process Image\r\n", numOut);
   } 
  }
 /*******************************************************************************************
@@ -1522,7 +1595,7 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
    mxml_node_t *tree;
     uint16 autoIncrAddr = 0;
   
-   
+   EC_PRINT("Create Network from ENI XML file");
 /*initialize resources*/
   reset();
 
@@ -1537,17 +1610,20 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 	tree=mxmlLoadString(NULL, data_xmlprova_xml, MXML_OPAQUE_CALLBACK); 
     //fclose(fp);
 	
+	EC_PRINT("XML file loaded\r\n");
+	
 	mxml_node_t *Root = mxmlFindElement(tree, tree,"Config" ,NULL, NULL, MXML_DESCEND);
     if( Root != NULL )
    {
-                ec_slavecount= 0;
+       EC_PRINT("XML file opened");        
+    			ec_slavecount= 0;
                 mxml_node_t  *pSlaves = mxmlFindElement(Root, tree,"Slave" ,NULL, NULL, MXML_DESCEND);
                 mxml_node_t *element =pSlaves;
 				while (element != NULL)
 				{ec_slavecount++;
 				 element = mxmlFindElement(element, Root,"Slave" ,NULL, NULL, MXML_NO_DESCEND);
 				 }
-	
+	    EC_PRINT("Found %d slaves in XML file\r\n", ec_slavecount); 
 	
 	//create SlaveList
     CreateSlaveList(&SlaveList,ec_slavecount);	
@@ -1559,12 +1635,15 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
       nodeMaster = mxmlFindElement(tree, tree,"Master",NULL, NULL, MXML_DESCEND);
 	   if (nodeMaster != NULL)
 	   {
-	     
- 		if (!CreateMaster(nodeMaster,ec_slavecount)) 
-		       return -1;
+	     EC_PRINT("Start Master configuration\r\n");
+		  
+ 		if (!CreateMaster(nodeMaster,ec_slavecount))
+             {	EC_PRINT("Configuration of Mater's node failed!\r\n"); 	
+		       return -1;}
 	    }
 	   else
 	    {  
+		  EC_PRINT("Unable to find Mater's node!\r\n"); 
 	      return -1;
 	    }
 		
@@ -1577,6 +1656,7 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
                     if( pNode )
                     {
                         boolean bDcEnable = FALSE;
+						EC_PRINT("Start Slave %d configuration\r\n", NumSlave);
                         CreateSlave(pNode, Root, autoIncrAddr, &bDcEnable, NumSlave);
 						autoIncrAddr--;
 						NumSlave++;
@@ -1589,17 +1669,21 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 		pNode = mxmlFindElement(Root, tree,"Cyclic" ,NULL, NULL,MXML_DESCEND);
                 if( pNode )
                 {
-                    
+                    EC_PRINT("Start Cyclic commands configuration\r\n");
  				    SetCyclicCmds(pNode, Root, &Cyclic);	
                 }
 		pNode=mxmlFindElement(Root, tree,"ProcessImage" ,NULL, NULL, MXML_DESCEND);
 		    if ( pNode )
-			    {SetProcImg(pNode, Root);}
+			    {
+				 EC_PRINT("Start Process Image configuration\r\n");
+				 SetProcImg(pNode, Root);
+				}
 				
  	return 1;  
 	}
 	 else 
-	  return -1;
+	  {EC_PRINT("failed in opening XML file\r\n");
+	  return -1;}
 	  
   }
  
