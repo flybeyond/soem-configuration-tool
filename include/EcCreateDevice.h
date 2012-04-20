@@ -295,7 +295,8 @@ unsigned char * XmlGetBinData( char * bstrHex, unsigned int *len );
 unsigned char *XmlGetBinDataChar( char *bstrHex, unsigned int *lun );
 EcInitCmdDesc *ReadECatCmd(mxml_node_t *pCmdNode,mxml_node_t *TopNode);
 int CreateMaster(mxml_node_t *pMasterNode, long nSlaves);
-int CreateDevice (void);
+int CreateDevice (void); //use this if XML is passed as string buffer
+//int CreateDevice (const char *strXMLConfig); //use this if XML is passed as file
  void CreateListInitCmd(InitCmdList **plist);
  void InsertInitCmd(InitCmdList **plist, EcInitCmdDesc *cmd);
 void CreateListMboxInitCmd(InitMboxCmdList **plist);
