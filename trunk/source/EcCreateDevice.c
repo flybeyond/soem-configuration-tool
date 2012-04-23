@@ -1625,8 +1625,6 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 				 }
 	    EC_PRINT("Found %d slaves in XML file\r\n", ec_slavecount); 
 	
-	//create SlaveList
-    CreateSlaveList(&SlaveList,ec_slavecount);	
 			
 			
 	  //find the node "master"
