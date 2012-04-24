@@ -9,7 +9,7 @@ Moreover this tool provides an implementation of the State Machine, so you can e
 =Data structures=
 
  
-Since Soem doesn't provide space for some information contains in the ENI XML file, new structures has been crerated. 
+Since Soem doesn't provide space for some information contains in the ENI XML file, new structures has been created. 
 For example:
   * structure ec_slaveMore, wich works in parallel with pre-existent ec_slave of SOEM;
   * Init_commands. Since the number of  init commands is variable (both for slave and transition), these commands are inserted in dynamic lists. 
