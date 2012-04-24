@@ -18,7 +18,7 @@ For each slave is created one list,  plus some counters to track the number of i
  
 =The mini-xml library=
 
-Mini-XML (avaible at http://www.minixml.org) is a small XML library that you can use to read and write XML and XML-like data files in your application without requiring large non-standard libraries. Mini-XML only requires an ANSI C compatible compiler (GCC works, as do most vendors' ANSI C compilers) and a 'make' program.
+Mini-XML (available at http://www.minixml.org) is a small XML library that you can use to read and write XML and XML-like data files in your application without requiring large non-standard libraries. Mini-XML only requires an ANSI C compatible compiler (GCC works, as do most vendors' ANSI C compilers) and a 'make' program.
 Mini-XML supports reading of UTF-8 and UTF-16 and writing of UTF-8 encoded XML files and strings. Data is stored in a linked-list tree structure, preserving the XML data hierarchy, and arbitrary element names, attributes, and attribute values are supported with no preset limits, just available memory.
 
 =EcCreateDevice(EcCreateDevice.c)=
@@ -27,7 +27,7 @@ This module manages the XML parsing and filles structure's fields with the infor
 Beware that at the end of parsing, network configuration is in an inconsistent status, because the information stored in ec_slave and ec_slaveMore are different from the actual configuration of slaves. For example, for the first slave we read that the physical address is 0x1001 and store this information in ec_slave`[`1`]`.configadr, but the Synch Manager of the slave it hasn't been set yet, so if you try to send an FPRD or FPWR command , the slave don't respond.
 To keep track of this inconsistency, at the end of the parsing, all slaves are in a pseudo-state EC_STATE_NONE (remember that the only allowable states for a slave are INIT, PRE-OP, SAFE-OP, OPERATIONAL).
 
-===Function “CreateDevice”===
+===Function "CreateDevice"===
 
 This is the main function. It takes care of:
   * load the XML file. This could be load as a file or as a string buffer (see instruction in the zip file for converting the XML file);
