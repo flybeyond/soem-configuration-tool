@@ -1636,12 +1636,12 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
 	     EC_PRINT("Start Master configuration\r\n");
 		  
  		if (!CreateMaster(nodeMaster,ec_slavecount))
-             {	EC_PRINT("Configuration of Mater's node failed!\r\n"); 	
+             {	EC_PRINT("Configuration of Master's node failed!\r\n"); 	
 		       return -1;}
 	    }
 	   else
 	    {  
-		  EC_PRINT("Unable to find Mater's node!\r\n"); 
+		  EC_PRINT("Unable to find Master's node!\r\n"); 
 	      return -1;
 	    }
 		
