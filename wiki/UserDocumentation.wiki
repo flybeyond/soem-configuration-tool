@@ -12,8 +12,8 @@ This tool acts like an application layer for the SOEM, so no modification to the
 Since Soem doesn't provide space for some information contains in the ENI XML file, new structures has been crerated. 
 For example:
   * structure ec_slaveMore, wich works in parallel with pre-existent ec_slave of SOEM;
-  * Init_commands. Since the number of  init command is variable (both for slave and transition), this command are inserted in dynamic lists. 
-Obviously, it has been created also the functions to mangae these lists.
+  * Init_commands. Since the number of  init commands is variable (both for slave and transition), these commands are inserted in dynamic lists. 
+Obviously, it has been created also the functions to manage these lists.
 For each slave is created one list,  plus some counters to track the number of init_command for each transition. 
  
 =The mini-xml library=
