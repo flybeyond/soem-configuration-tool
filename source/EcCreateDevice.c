@@ -2,9 +2,10 @@
  * SOEM Configuration tool
  *
  * File    : EcCreateDevice.c
- * Version : 1.3
- * Date    : 19-04-2012
+ * Version : 1.4
+ * Date    : 01-08-2012
  * History :
+ *          1.4, 01-08-2012, add support for Cyclic Frames     
  *          1.3, 19-04-2012, complete version for test
  *          1.2, 08-02-2012, temporarily disabled SoE and AoE; changed parsing <CoE>,<InitCmds> parsing
  *          1.1, 24-01-2012, Improved readability
@@ -16,7 +17,8 @@
 #include "ethercatmain.h"
 #include "ethercatbase.h"
 
-EcCycDesc Cyclic;
+ec_Framet ec_Frame[EC_MAXBUF];
+unsigned short ec_NoFrame=0;
 
 
 // define if debug printf is needed
@@ -1315,153 +1317,90 @@ if (spMailbox != NULL)
 /************************************************************
 Reads the <Frame> node in the ENI XML file and stores the information
 
-@param[IN] pCyclic = pointer to the <Frame> node in the ENI XML file 
+@param[IN] pFrame = pointer to the <Frame> node in the ENI XML file 
 @param[IN] Root = pointer to the Root of the ENI XML file
+@param[IN] noFrame = number of frame
 
-@param[IN] autoIncrAddr = auto incremental address of the current slave
+@param[out] ec_err
 
-@param[IN] bDcEnabled = TRUE if Distributed clock is enable for the current slave
-@param[IN] slave = index of the current slave
-@param[out] pCyclicDesc stores the information read from the ENI XML file
+History:
+       ver 1.2, 20-07-2012, add multi-frames management
+       ver 1.1, 24-01-2012, Initial version
 ***************************************************************/
 
-void SetCyclicCmds(mxml_node_t *pCyclic, mxml_node_t *Root, EcCycDesc *pCyclicDesc)
+ec_err SetCyclicCmds(mxml_node_t *pFrame, mxml_node_t *Root, uint16 noFrame)
 {
-    if( pCyclic== NULL )
-        return;
-
-   
-    mxml_node_t *pCycleTime = mxmlFindElement(pCyclic, Root, "CycleTime", NULL, NULL, MXML_DESCEND_FIRST);
-    uint32 vCycTime = 0;
-    if ( pCycleTime != NULL )
-    {
-        
-        vCycTime = (unsigned long) text2long(pCycleTime->child->value.opaque);
-		EC_PRINT("CycleTime: %8x\n", vCycTime);
-    }
-
-    
-   ec_slaveMore[0].configCycTime=vCycTime;
-
- mxml_node_t *pFrame=mxmlFindElement(pCyclic, Root, "Frame", NULL, NULL, MXML_DESCEND_FIRST);
- 
-  mxml_node_t *spCmds = mxmlFindElement(pFrame, pCyclic, "Cmd", NULL, NULL, MXML_DESCEND_FIRST);
+   mxml_node_t *pNode, *element;
+   uint8 NoCmd=0;
+  mxml_node_t *spCmds = mxmlFindElement(pFrame, Root, "Cmd", NULL, NULL, MXML_DESCEND_FIRST);
     if( spCmds == NULL )
-	  {
-	    EC_PRINT("Unable to read Frame node!\n\r");
-        return -1;
-      }
-   
-	pCyclicDesc->state= EC_STATE_PRE_OP|EC_STATE_SAFE_OP|EC_STATE_OPERATIONAL;
-	mxml_node_t *spNode;
-    mxml_node_t *element;
-	CycCmdList *pCycCmdList=NULL;
-    for( element = spCmds;element; element =mxmlFindElement(element, pFrame,"Cmd" ,NULL, NULL,MXML_NO_DESCEND))
-    {
-        EcCmdDesc  *pCmd;
-		pCmd=malloc(sizeof(EcCmdDesc));
-		memset(pCmd,0,sizeof(EcCmdDesc));
-            
-            //read command type
-			spNode=mxmlFindElement(element, pFrame,"Cmd" ,NULL, NULL,MXML_DESCEND_FIRST);
-            pCmd->head.command = (unsigned char) text2uchar(spNode->child->value.opaque);
-			EC_PRINT("Found command: %2d\n",pCmd->head.command);
-            switch (pCmd->head.command )
-            {
-            case EC_CMD_LRD:
+        return EC_ERR_NOK;
+		ec_Frame[noFrame].ActiveFrame=TRUE;
+        
+		for (pNode=spCmds; pNode; pNode=mxmlFindElement(pNode,pFrame, "Cmd", NULL, NULL, MXML_NO_DESCEND))
+		{
+		  if(NoCmd>2) //we've found more than 3 command per frame
+		     return EC_ERR_NOK;
+			ec_Frame[noFrame].NumCmd++; 
+		  //read <state>
+		  mxml_node_t *spState=mxmlFindElement(spCmds,pFrame, "State", NULL, NULL, MXML_DESCEND_FIRST);
+		  for (element=spState; element; element=mxmlFindElement(element,spCmds, "State", NULL, NULL, MXML_NO_DESCEND))
+		   {
+		    if( strcmp(element->child->value.opaque, "PREOP") == 0 )
+                ec_Frame[noFrame].FrameCmds[NoCmd].state|= EC_STATE_PRE_OP;
+ 			 else if( strcmp(element->child->value.opaque, "SAFEOP") == 0 )
+                ec_Frame[noFrame].FrameCmds[NoCmd].state|= EC_STATE_SAFE_OP;
+			else if( strcmp(element->child->value.opaque, "OP") == 0 )
+                ec_Frame[noFrame].FrameCmds[NoCmd].state|= EC_STATE_OPERATIONAL;
+		   }//end_read<state>
+		   
+		   //read <cmd>
+		   element=mxmlFindElement(pNode, pFrame, "Cmd", NULL, NULL, MXML_DESCEND_FIRST);
+		   if (element)
+		    ec_Frame[noFrame].FrameCmds[NoCmd].cmd= (unsigned char) text2uchar(element->child->value.opaque); 
+			
+			//read <Addr>
+			switch (ec_Frame[noFrame].FrameCmds[NoCmd].cmd)
+			{case EC_CMD_LRD:
             case EC_CMD_LWR:
             case EC_CMD_LRW:
-                //read logical address
-				spNode=mxmlFindElement(element, pFrame,"Addr" ,NULL, NULL,MXML_DESCEND_FIRST);
-                pCmd->head.laddr = SWAPDWORD((unsigned long)(long) text2long(spNode->child->value.opaque));
-				EC_PRINT("Logic address: %8x\n",pCmd->head.laddr);
-                break;
-            default:
-                //read address page and offset
-				spNode=mxmlFindElement(element, pFrame,"Adp" ,NULL, NULL,MXML_DESCEND_FIRST);
-                pCmd->head.ADP = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
-				spNode=mxmlFindElement(element, pFrame,"Ado" ,NULL, NULL,MXML_DESCEND_FIRST);
-                pCmd->head.ADO = SWAP((unsigned short)(long) text2long(spNode->child->value.opaque));
-				EC_PRINT("ADP: %4x ADO: %4x\n",pCmd->head.ADP, pCmd->head.ADO);
-            }
-            spNode=mxmlFindElement(element, pFrame,"DataLength" ,NULL, NULL,MXML_DESCEND_FIRST);
-            if (spNode != NULL) 
-			{
-			  pCmd->head.dlength =  ((unsigned short)(long) text2long(spNode->child->value.opaque));
-              EC_PRINT("Datalength %4x\n",pCmd->head.dlength);
-            }
-            //Read the states this command should be sent in.
-            mxml_node_t *spStates = mxmlFindElement(element, pFrame,"State" ,NULL, NULL,MXML_DESCEND_FIRST);
-            mxml_node_t *element1;
-            pCmd->state = 0;
-            for( element1 = spStates; element1; element1 = mxmlFindElement(element1, element,"State" ,NULL, NULL,MXML_NO_DESCEND))
-            {
-                if( strcmp(element1->child->value.opaque, "INIT") == 0 )
-                    pCmd->state |= EC_STATE_INIT;
-                else if( strcmp(element1->child->value.opaque, "PREOP") == 0)
-                    pCmd->state |= EC_STATE_PRE_OP;
-                else if( strcmp(element1->child->value.opaque, "SAFEOP") == 0)
-                    pCmd->state |= EC_STATE_SAFE_OP;
-                else if( strcmp(element1->child->value.opaque, "OP") == 0)
-                    pCmd->state |= EC_STATE_OPERATIONAL;
-            }
-            pCmd->cntSend               = 0;
-            //read working counter
-			spNode=mxmlFindElement(element, pFrame,"Cnt" ,NULL, NULL,MXML_DESCEND_FIRST);
-            if( spNode != NULL )
-			{
-                pCmd->cntRecv  = (unsigned short)(long) text2long(spNode->child->value.opaque);
-                EC_PRINT("Expected WKC %4x\n\r",pCmd->cntRecv);
+			               element=mxmlFindElement(pNode, pFrame, "Addr", NULL, NULL, MXML_DESCEND_FIRST);
+		                   if (element)		     
+		                   ec_Frame[noFrame].FrameCmds[NoCmd].laddr= ((unsigned long)(long) text2long(element->child->value.opaque));
+			               break;
+			default:
+			         element=mxmlFindElement(pNode, pFrame, "Adp", NULL, NULL, MXML_DESCEND_FIRST);
+		                   if (element)	
+			                ec_Frame[noFrame].FrameCmds[NoCmd].ADP=(unsigned short)(long)text2long(element->child->value.opaque);
+					 element=mxmlFindElement(pNode, pFrame, "Ado", NULL, NULL, MXML_DESCEND_FIRST);
+		                   if (element)	
+			                ec_Frame[noFrame].FrameCmds[NoCmd].ADO=(unsigned short)(long)text2long(element->child->value.opaque);
+						break;
 			}
-            pCmd->cmdSize  = sizeof(ec_comt)+sizeof(uint16)+(pCmd->head.dlength);
-            
-            pCmd->copyInputs  = FALSE;
-            pCmd->copyOutputs = FALSE;
-            spNode=mxmlFindElement(element, pFrame,"InputOffs" ,NULL, NULL,MXML_DESCEND_FIRST);
-            if( spNode !=NULL )
-            {   //this command is responsible for reading the input process data (LRD, BRD, LRW)
-                pCmd->copyInputs            = TRUE;
-                pCmd->imageSize[VG_IN]  = sizeof(ec_comt)+sizeof(uint16)+(pCmd->head.dlength);
-                pCmd->imageOffs[VG_IN]  = (unsigned short)(long) text2long(spNode->child->value.opaque);
-            }
-            spNode=mxmlFindElement(element, pFrame,"OutputOffs" ,NULL, NULL,MXML_DESCEND_FIRST);
-            if (spNode !=NULL)
-            {  //this command is responsible for writing the output process data (LWR, LRW)
-                
-                switch ( pCmd->head.command )
-                {
-                case EC_CMD_LRW:
-                case EC_CMD_LWR:
-                case EC_CMD_BWR:
-                case EC_CMD_FPWR:
-                    pCmd->copyOutputs           = TRUE;
-                    break;
-                default:
-                    pCmd->copyOutputs           = FALSE;
-                    break;
-                }
-                pCmd->imageSize[VG_OUT] = sizeof(ec_comt)+sizeof(uint16)+(pCmd->head.dlength);
-                pCmd->imageOffs[VG_OUT] = (unsigned short)(long) text2long(spNode->child->value.opaque);
-            }
-
-            if( pCmd->copyOutputs || pCmd->copyInputs )
-            {
-                
-
-                pCyclicDesc->size                     += pCmd->cmdSize;
-                pCyclicDesc->cntCmd++;
-
-
-            }
-		 //insert the command in the list
-		 
-		 InsertCycCmd(&pCycCmdList,pCmd);
-		 free(pCmd);
-    }
-       
-		pCyclicDesc->CycCmds=(CycCmdList*)pCycCmdList;
-    }
+			//read <DataLength>
+			element=mxmlFindElement(pNode, pFrame, "DataLength", NULL, NULL, MXML_DESCEND_FIRST);
+		   if (element)
+		    ec_Frame[noFrame].FrameCmds[NoCmd].DataLength= (unsigned short)(long) text2long(element->child->value.opaque); 
+			
+		   //read <Cnt>
+			element=mxmlFindElement(pNode, pFrame, "Cnt", NULL, NULL, MXML_DESCEND_FIRST);
+		   if (element)
+		    ec_Frame[noFrame].FrameCmds[NoCmd].cnt= (unsigned short)(long) text2long(element->child->value.opaque); 
+			
+		   //read <Offs>
+			element=mxmlFindElement(pNode, pFrame, "InputOffs", NULL, NULL, MXML_DESCEND_FIRST);
+		   if (element)
+		    ec_Frame[noFrame].FrameCmds[NoCmd].Offs= (unsigned short)(long) text2long(element->child->value.opaque); 
+			
+		 NoCmd++;
+         		 
+        }
+   
+	 return EC_ERR_OK;	
+}
     
+
+///////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 /*
@@ -1663,20 +1602,38 @@ int CreateDevice (void) //Debug: XML passed by string buffer instead from file
         }
 		
 				 	
-		//Read Cyclic commands from XML file and create a list
-		pNode = mxmlFindElement(Root, tree,"Cyclic" ,NULL, NULL,MXML_DESCEND);
-                if( pNode )
+		///Read Cyclic commands from XML file
+		mxml_node_t *pCyclic = mxmlFindElement(Root, tree,"Cyclic" ,NULL, NULL,MXML_DESCEND);
+                if( pCyclic )
                 {
-                    EC_PRINT("Start Cyclic commands configuration\r\n");
- 				    SetCyclicCmds(pNode, Root, &Cyclic);	
-                }
-		pNode=mxmlFindElement(Root, tree,"ProcessImage" ,NULL, NULL, MXML_DESCEND);
-		    if ( pNode )
-			    {
-				 EC_PRINT("Start Process Image configuration\r\n");
-				 SetProcImg(pNode, Root);
-				}
-				
+				   //EcCycDesc* pCyclicFrame;
+				    mxml_node_t *pCycleTime = mxmlFindElement(pCyclic, Root, "CycleTime", NULL, NULL, MXML_DESCEND_FIRST);
+                    uint32 vCycTime = 0;
+                    if ( pCycleTime != NULL )
+                    {
+                      vCycTime = (unsigned long) text2long(pCycleTime->child->value.opaque);
+                    }
+
+                     //pEcMaster->configCycTime=vCycTime;
+                     ec_slaveMore[0].configCycTime=vCycTime;
+                    mxml_node_t *pFrame=mxmlFindElement(pCyclic, Root,"Frame" ,NULL, NULL, MXML_DESCEND_FIRST);	  
+				   if (pFrame) 
+	               { 
+                     for( pNode = pFrame; pNode; pNode = mxmlFindElement(pNode, Root,"Frame" ,NULL, NULL,MXML_DESCEND))
+                       {		      
+                          ec_NoFrame++;
+                        }
+						
+						pNode=pFrame;
+						for (i=0;i<ec_NoFrame;i++)
+						{
+						 err=SetCyclicCmds(pNode,pCyclic,i);
+						  if (err) return -1; 
+						 pNode = mxmlFindElement(pNode, Root,"Frame" ,NULL, NULL,MXML_DESCEND);
+						}
+                        
+				    }	
+                } 
  	return 1;  
 	}
 	 else 
