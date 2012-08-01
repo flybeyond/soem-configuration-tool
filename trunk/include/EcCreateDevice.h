@@ -58,22 +58,33 @@
 
 
 
-///////////////////////////////////////////////////////////////////////////////
-typedef struct TEcCycDesc
-{
-    //ETHERNET_ADDRESS        macTarget;
-    uint16                  size;
-    uint16                  cntCmd;
-    uint16                  syncMapId;
-    uint16                  cdlNo;      // 0, 1, 2, 3...   0 = highest prio
-    uint16                  imageOffs[2];
-    uint16                  imageSize[2];
-    
-    uint8                   ecatMaster;
-    uint8                    state;
-    uint16                  reserved2;
-	void                   *CycCmds;
-} EcCycDesc;
+ /**Frame structure where to store information about cyclic frame from XML file**/
+
+typedef struct PACKED TagCycCmd
+{ uint16 state;
+  unsigned char cmd;
+  union
+    {
+        struct
+        {
+            uint16  ADP;
+            uint16  ADO;
+        };
+        uint32 laddr;
+    };
+  uint16 DataLength;
+  uint16 Offs;
+  uint16 cnt;
+ } CycCmd;
+ 
+typedef struct PACKED TagFrame
+{ uint8 ActiveFrame;
+  uint8 NumCmd;
+  CycCmd FrameCmds[3]; 
+}ec_Framet;
+
+extern ec_Framet ec_Frame[EC_MAXBUF];
+extern unsigned short ec_NoFrame;
 
 
 #define ETYPE_EC_OVERHEAD       (EC_HEADERSIZE+EC_WKCSIZE)
