@@ -1,6 +1,7 @@
 
 #include "cyclic.h"
 #include "EcCreateDevice.h"
+#include "nicdrv.h"
 
 #define EC_MAXCMD 3
  #define DATAOFFS 10
@@ -23,6 +24,8 @@ typedef struct
 } ec_MY_idxstackT;
 
 static ec_MY_idxstackT ec_MY_idxstack;
+
+
 
 static void ec_MY_pushindex(uint8 NumFrame)
 {
@@ -71,7 +74,7 @@ static int ec_MY_pullindex(void)
    CycFrame[FrameIndex].nInfo=ec_Frame[FrameIndex].NumCmd;
    CycFrame[FrameIndex].timeout=EC_TIMEOUTRET;
    //index
-	  idx=ec_getindex(0);
+	  idx=ec_getindex();
 	  CycFrame[FrameIndex].nIdx=idx;
 	  
    //buffer
