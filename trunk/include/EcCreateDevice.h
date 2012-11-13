@@ -288,7 +288,11 @@ typedef struct PACKED
  {ec_variable variable;
   struct Tec_VariableList *NextVar;
   } ec_VariableList;
-
+  
+typedef struct PACKED TagSlaveList
+{ec_slaveMoret ec_slaveMore;
+  struct TagSlaveList *nextSlave;
+ } ec_SlaveList;
 /////////////////////////////////////////////////////////
 
 /*************************************
@@ -296,8 +300,13 @@ typedef struct PACKED
 **************************************/
 
 extern EcCycDesc Cyclic;
-extern ec_slaveMoret ec_slaveMore[EC_MAXSLAVE];
+
 extern ec_VariableList *VariableOutList=NULL, *VariableInList=NULL; 
+
+
+
+extern ec_SlaveList *SlaveList;
+
 /**********************************************
 * functions prototypes
 *
