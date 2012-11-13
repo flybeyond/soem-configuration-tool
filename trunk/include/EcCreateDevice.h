@@ -213,7 +213,10 @@ typedef struct PACKED TagInitCmdList
   struct TagCycCmdList *nextCmd;
   }CycCmdList;
   
-
+typedef struct PACKED TagCycList
+ {EcCycDesc CycFRame;
+  struct TagCycList *nextFrame;
+  }CycList;
 /***************************************
 * new fields for ec_slave
 ****************************************/
