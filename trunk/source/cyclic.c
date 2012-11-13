@@ -87,7 +87,7 @@ static int ec_MY_pullindex(void)
 		      more=FALSE;
 			  
 			//cmd
-		 if (ec_Frame[FrameIndex].FrameCmds[i].state&SlaveList->ec_slave.state)
+		 if (ec_Frame[FrameIndex].FrameCmds[i].state& ec_slave[0].state)
 		     cmd=ec_Frame[FrameIndex].FrameCmds[i].cmd;
 			 else cmd=EC_CMD_NOP;
 			 
