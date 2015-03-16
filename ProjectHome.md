@@ -1,0 +1,1 @@
+This software is used for reading EtherCAT XML network configuration files (ENI) in order to achieve network configuration in SOEM environment.
